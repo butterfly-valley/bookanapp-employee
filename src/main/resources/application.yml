@@ -18,7 +18,7 @@ spring:
       max-acquire-time: 5
       max-life-time: 15
 server:
-  port: 8086
+  port: 8087
   error:
     include-message: always
 #eureka:
