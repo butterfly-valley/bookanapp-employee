@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: appointment
+  messages:
+    encoding: UTF-8
+    cache-duration: -1
+    basename: messages
+  r2dbc:
+    pool:
+      initial-size: 10
+      max-size: 30
+      max-idle-time: 15s
+      validation-query: SELECT 1
+    properties:
+      connect-timeout: 10
+      ssl: false
+      max-create-connection-time: 3
+      max-acquire-time: 5
+      max-life-time: 15
+server:
+  port: 8086
+  error:
+    include-message: always
+#eureka:
+#  instance:
+#    prefer-ip-address: true
+#  client:
+#    service-url:
+#      defaultZone: http://localhost:8081/eureka/
+#    fetch-registry: true
+#    register-with-eureka: true
+
+app:
+  jwtSecret: b3b2b1be3df94d1183c05e7f8326c2e4
+  jwtExpirationInMs: 36000
+  providerServiceUrl: http://localhost:8083/api
+  notificationServiceUrl: http://localhost:8084
