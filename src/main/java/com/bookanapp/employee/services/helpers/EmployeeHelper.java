@@ -3,6 +3,7 @@ package com.bookanapp.employee.services.helpers;
 import com.bookanapp.employee.entities.Division;
 import com.bookanapp.employee.entities.Employee;
 import com.bookanapp.employee.entities.Subdivision;
+import com.bookanapp.employee.entities.rest.EmployeeAuthority;
 import com.bookanapp.employee.entities.rest.EmployeeDetails;
 import com.bookanapp.employee.entities.rest.EmployeeEntity;
 import com.bookanapp.employee.entities.rest.Provider;
@@ -15,9 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -72,6 +71,22 @@ public class EmployeeHelper {
                             }
                         })
                 );
+    }
+
+    public Mono<ResponseEntity> showEmployee(long id) {
+
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> this.employeeService.getEmployee(id)
+                        .flatMap(employee -> {
+                            if (employee.getProviderId() == providerId) {
+
+                            } else {
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
+                            }
+                        })
+                );
+
+
     }
 
     private Mono<ResponseEntity> filterEmployeeByName(List<Employee> employees) {
@@ -160,6 +175,73 @@ public class EmployeeHelper {
 
     }
 
+    private Mono<EmployeeEntity> buildEmployeeEntity(Employee employee) {
+
+        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/authorities/" + employee.getId());
+
+        return client.get()
+                .retrieve()
+                .bodyToMono(EmployeeAuthority[].class)
+                .flatMap(array -> {
+                    var auths = Arrays.asList(array);
+                    Set<String> authorities = new HashSet<>();
+                    auths.forEach(
+                            employeeAuthority -> {
+                                if (!employeeAuthority.getAuthority().equals("ROLE_PRO")
+                                        || !employeeAuthority.getAuthority().equals("ROLE_BUSINESS")
+                                        || !employeeAuthority.getAuthority().equals("ROLE_ENTERPRISE"))
+                                    authorities.add(employeeAuthority.getAuthority());
+                            }
+                    );
+
+
+                    return this.loadEmployee(employee.getId())
+                            .flatMap(loadedEmployee -> {
+                                Set<Long> schedules = new HashSet<>();
+
+                                if (employee.getAuthorizedSchedules() != null) {
+                                    employee.getAuthorizedSchedules().forEach(authorizedSchedule -> schedules.add(authorizedSchedule.getScheduleId()));
+                                }
+
+
+                                    return Mono.just(EmployeeEntity.builder()
+                                            .id(loadedEmployee.getId())
+                                            .name(loadedEmployee.getName())
+                                            .authorities(authorities)
+                                            .authorizedSchedules(schedules)
+                                            .authorizedScheduleNames(scheduleNames)
+                                            .registerDate(loadedEmployee.getRegisterDate().toString())
+                                            .username(loadedEmployee.getUsername())
+                                            .avatar(loadedEmployee.getAvatar())
+                                            .subdivision(employee.getSubdivision() != null ? employee.getSubdivision().getName() : null)
+                                            .division(employee.getSubdivision() != null ? employee.getSubdivision().getDivision().getName() : null)
+                                            .subdivisionId(employee.getSubdivision() != null ? employee.getSubdivision().getSubdivisionId() : null)
+                                            .divisionId(employee.getSubdivision() != null && employee.getSubdivision().getDivision() != null ? employee.getSubdivision().getDivision().getDivisionId() : null)
+                                            .jobTitle(loadedEmployee.getJobTitle())
+                                            .authorizedRosters(loadedEmployee.getAuthorizedRosters())
+                                            .timeOffBalance(employee.getTimeOffBalance())
+                                            .homeAddress(loadedEmployee.getAddress())
+                                            .phones(loadedEmployee.getPhones())
+                                            .family(loadedEmployee.getFamily())
+                                            .bankAccount(loadedEmployee.getBankAccount())
+                                            .taxPayerId(loadedEmployee.getTaxPayerId())
+                                            .personalEmail(loadedEmployee.getPersonalEmail())
+                                            .build());
+                            });
+
+
+                });
+
+    }
+
+    private Mono<EmployeeEntity> buildEntity(Employee employee) {
+        ;
+        return this.employeeService.getTimeOff(employee.getId())
+                .flatMap(timeOff -> {
+                    var timeOffEntity =
+                })
+    }
+
     private Mono<EmployeeEntity> buildShortEmployeeEntity(Employee employee) {
         if (employee.getSubdivisionId() != null) {
             return this.employeeService.getSubdivision(employee.getSubdivisionId())
@@ -183,6 +265,55 @@ public class EmployeeHelper {
                     .jobTitle(employee.getJobTitle())
                     .build());
         }
+
+
+    }
+
+    private Mono<Employee> loadEmployee(long employeeId) {
+
+        return this.employeeService.getEmployee(employeeId)
+                .flatMap(employee -> this.employeeService.getFamily(employeeId)
+                        .flatMap(familyMembers -> {
+                            employee.setFamily(familyMembers);
+                            return Mono.just(employee);
+                        })
+                )
+                .flatMap(employee -> this.employeeService.getPhones(employeeId)
+                        .flatMap(phones -> {
+                            employee.setPhones(phones);
+                            return Mono.just(employee);
+                        })
+                )
+                .flatMap(employee -> this.employeeService.getAddress(employeeId)
+                        .flatMap(address -> {
+                            employee.setAddress(address);
+                            return Mono.just(employee);
+                        })
+                        .switchIfEmpty(Mono.just(employee))
+                )
+                .flatMap(employee -> this.employeeService.getTimeOff(employeeId)
+                        .flatMap(timeOffBalance -> {
+                            employee.setTimeOffBalance(timeOffBalance);
+                            return Mono.just(employee);
+                        })
+                        .switchIfEmpty(Mono.just(employee))
+                )
+                .flatMap(employee -> this.employeeService.getSubdivision(employeeId)
+                        .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                                .flatMap(division -> {
+                                    subdivision.setDivision(division);
+                                    employee.setSubdivision(subdivision);
+                                    return Mono.just(employee);
+                                }))
+                        .switchIfEmpty(Mono.just(employee))
+                )
+                .flatMap(employee -> this.employeeService.getAuthorizedSchedules(employeeId)
+                        .flatMap(schedules -> {
+                            employee.setAuthorizedSchedules(schedules);
+                            return Mono.just(employee);
+                        })
+                        .switchIfEmpty(Mono.just(employee))
+                );
 
 
     }

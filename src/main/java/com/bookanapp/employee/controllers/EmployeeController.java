@@ -49,4 +49,17 @@ public class EmployeeController {
 
     }
 
+    @GetMapping("/get/{id}")
+    @PreAuthorize( "hasAuthority('PROVIDER')" +
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+    public Mono<? extends ResponseEntity> showEmployee(@PathVariable("id") long id) {
+
+        return this.employeeHelper.showEmployee(id)
+                .onErrorResume(e -> {
+                    log.error("Error searching employees by name for providerId, error: " + e.getMessage());
+                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                });
+
+    }
+
 }

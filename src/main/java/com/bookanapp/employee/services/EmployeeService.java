@@ -1,11 +1,7 @@
 package com.bookanapp.employee.services;
 
-import com.bookanapp.employee.entities.Division;
-import com.bookanapp.employee.entities.Employee;
-import com.bookanapp.employee.entities.Subdivision;
-import com.bookanapp.employee.repositories.DivisionRepository;
-import com.bookanapp.employee.repositories.EmployeeRepository;
-import com.bookanapp.employee.repositories.SubdivisionRepository;
+import com.bookanapp.employee.entities.*;
+import com.bookanapp.employee.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -20,6 +16,11 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final DivisionRepository divisionRepository;
     private final SubdivisionRepository subdivisionRepository;
+    private final EmployeeTimeOffRepository employeeTimeOffRepository;
+    private final EmployeePhoneRepository employeePhoneRepository;
+    private final EmployeeFamilyRepository employeeFamilyRepository;
+    private final EmployeeAddressRepository employeeAddressRepository;
+    private final AuthorizedScheduleRepository authorizedScheduleRepository;
 
 
     public Mono<Employee> getEmployee(long id) {
@@ -41,4 +42,25 @@ public class EmployeeService {
     public Mono<List<Employee>> getAllEmployeesByName(long providerId, String term) {
         return this.employeeRepository.getAllByProviderIdAndNameContaining(providerId, term).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
+
+    public Mono<EmployeeTimeOffBalance> getTimeOff(long id) {
+        return this.employeeTimeOffRepository.getByEmployeeId(id);
+    }
+
+    public Mono<EmployeeAddress> getAddress(long id) {
+        return this.employeeAddressRepository.getByEmployeeId(id);
+    }
+
+    public Mono<List<EmployeeFamilyMember>> getFamily(long employeeId) {
+        return this.employeeFamilyRepository.getAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+    public Mono<List<EmployeePhone>> getPhones(long employeeId) {
+        return this.employeePhoneRepository.getAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+    public Mono<List<AuthorizedSchedule>> getAuthorizedSchedules(long employeeId) {
+        return this.authorizedScheduleRepository.findAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
 }

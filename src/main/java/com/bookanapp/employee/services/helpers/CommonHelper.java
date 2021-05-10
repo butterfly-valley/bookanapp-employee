@@ -26,6 +26,15 @@ public class CommonHelper {
     @Value("${app.providerServiceUrl}")
     private String providerServiceUrl;
 
+    @Value("${app.authServiceUrl}")
+    public String authServiceUrl;
+
+    @Value("${app.appointmentServiceUrl}")
+    public String appointmentServiceUrl;
+
+    @Value("${app.notificationServiceUrl}")
+    public String notificationServiceUrl;
+
     public Mono<UserDetails> getCurrentUser() {
         return context.flatMap(
                 context -> {

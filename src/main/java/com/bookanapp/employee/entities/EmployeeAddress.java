@@ -1,6 +1,8 @@
 package com.bookanapp.employee.entities;
 
 import lombok.Data;
+import org.springframework.data.annotation.Id;
+
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.io.Serializable;
@@ -8,8 +10,12 @@ import java.io.Serializable;
 
 
 @Data
-public class EmployeeAddress implements Serializable {
-    private static final long serialVersionUID = 1L;
+public class EmployeeAddress {
+
+    @Id
+    private long id;
+    private Long employeeId;
+
     @NotNull
     @Size(min = 3, max = 300)
     private String street;

@@ -33,4 +33,8 @@ public class Employee {
     private List<EmployeePhone> phones = new ArrayList<>();
     @Transient
     private List<EmployeeFamilyMember> family = new ArrayList<>();
+    @Transient
+    private EmployeeTimeOffBalance timeOffBalance;
+    @Transient
+    private Subdivision subdivision;
 }

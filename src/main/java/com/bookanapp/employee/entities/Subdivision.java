@@ -18,4 +18,6 @@ public class Subdivision {
     private String name;
     @Transient
     private List<SubdivisionRosterSlot> rosterSlots = new ArrayList<>();
+    @Transient
+    private Division division;
 }

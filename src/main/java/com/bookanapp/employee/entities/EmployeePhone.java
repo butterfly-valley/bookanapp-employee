@@ -4,6 +4,7 @@ package com.bookanapp.employee.entities;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
 
 
 import java.util.Objects;
@@ -13,6 +14,10 @@ import java.util.Objects;
 @AllArgsConstructor
 @NoArgsConstructor
 public class EmployeePhone {
+
+    @Id
+    private long id;
+    private Long employeeId;
 
     private PhoneType phoneType;
     private String code;

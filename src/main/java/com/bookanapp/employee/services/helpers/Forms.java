@@ -1,7 +1,10 @@
 package com.bookanapp.employee.services.helpers;
 
 import com.bookanapp.employee.entities.rest.EmployeeEntity;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 
 import java.util.List;
@@ -14,4 +17,11 @@ public class Forms {
         private int total;
         private List<EmployeeEntity> entities;
     }
+
+    @Data
+    @AllArgsConstructor
+    public static class GenericResponse {
+        String message;
+    }
+
 }
