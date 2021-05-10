@@ -1,9 +1,9 @@
 package com.bookanapp.employee.repositories;
 
-import com.bookanapp.employee.entities.EmployeeTimeOffBalance;
+import com.bookanapp.employee.entities.TimeOffBalance;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Mono;
 
-public interface EmployeeTimeOffRepository extends ReactiveCrudRepository<EmployeeTimeOffBalance, Long> {
-    Mono<EmployeeTimeOffBalance> getByEmployeeId(long employeeId);
+public interface EmployeeTimeOffRepository extends ReactiveCrudRepository<TimeOffBalance, Long> {
+    Mono<TimeOffBalance> getByEmployeeId(long employeeId);
 }

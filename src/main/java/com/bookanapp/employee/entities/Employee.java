@@ -28,13 +28,20 @@ public class Employee {
     private String bankAccount;
     private String taxPayerId;
     @Transient
-    private EmployeeAddress address;
+    private Address address;
     @Transient
-    private List<EmployeePhone> phones = new ArrayList<>();
+    private List<Phone> phones = new ArrayList<>();
     @Transient
-    private List<EmployeeFamilyMember> family = new ArrayList<>();
+    private List<FamilyMember> family = new ArrayList<>();
     @Transient
-    private EmployeeTimeOffBalance timeOffBalance;
+    private TimeOffBalance timeOffBalance;
     @Transient
     private Subdivision subdivision;
+    @Transient
+    private List<String> authorities;
+    @Transient
+    private List<String> authorizedScheduleNames;
+    @Transient
+    private List<Long> authorizedRosters;
+
 }

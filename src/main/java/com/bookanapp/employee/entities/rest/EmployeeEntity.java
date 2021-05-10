@@ -1,14 +1,13 @@
 package com.bookanapp.employee.entities.rest;
 
-import com.bookanapp.employee.entities.EmployeeAddress;
-import com.bookanapp.employee.entities.EmployeeFamilyMember;
-import com.bookanapp.employee.entities.EmployeePhone;
-import com.bookanapp.employee.entities.EmployeeTimeOffBalance;
+import com.bookanapp.employee.entities.Address;
+import com.bookanapp.employee.entities.FamilyMember;
+import com.bookanapp.employee.entities.Phone;
+import com.bookanapp.employee.entities.TimeOffBalance;
 import lombok.*;
 
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Data
 @AllArgsConstructor
@@ -19,10 +18,10 @@ public class EmployeeEntity {
     private String username;
     private String name;
     private String registerDate;
-    private Set<String> authorities = new HashSet<>();
-    private Set<Long> authorizedSchedules=new HashSet<>();
-    private Set<Long> authorizedRosters=new HashSet<>();
-    private Set<String> authorizedScheduleNames=new HashSet<>();
+    private List<String> authorities = new ArrayList<>();
+    private List<Long> authorizedSchedules=new ArrayList<>();
+    private List<Long> authorizedRosters=new ArrayList<>();
+    private List<String> authorizedScheduleNames=new ArrayList<>();
     private String avatar;
     private String division;
     private String subdivision;
@@ -30,9 +29,9 @@ public class EmployeeEntity {
     private Long divisionId;
     private String jobTitle;
     private TimeOffEntity timeOffBalance;
-    private EmployeeAddress homeAddress;
-    private List<EmployeePhone> phones;
-    private List<EmployeeFamilyMember> family;
+    private Address homeAddress;
+    private List<Phone> phones;
+    private List<FamilyMember> family;
     private String bankAccount;
     private String taxPayerId;
     private String personalEmail;
@@ -42,7 +41,7 @@ public class EmployeeEntity {
     @NoArgsConstructor
     public static class TimeOffEntity {
 
-        public TimeOffEntity(EmployeeTimeOffBalance timeOffBalance) {
+        public TimeOffEntity(TimeOffBalance timeOffBalance) {
             this.vacationDays = timeOffBalance.getVacationDays();
             this.vacationRolloverDays = timeOffBalance.getVacationRolloverDays();
             this.complimentaryBankHolidayDays = timeOffBalance.getComplimentaryBankHolidayDays();

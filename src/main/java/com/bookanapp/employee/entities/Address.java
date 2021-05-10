@@ -10,10 +10,10 @@ import java.io.Serializable;
 
 
 @Data
-public class EmployeeAddress {
+public class Address {
 
-    @Id
-    private long id;
+//    @Id
+//    private long id;
     private Long employeeId;
 
     @NotNull

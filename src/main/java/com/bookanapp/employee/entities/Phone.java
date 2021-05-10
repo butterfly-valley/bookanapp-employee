@@ -13,10 +13,10 @@ import java.util.Objects;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EmployeePhone {
+public class Phone {
 
-    @Id
-    private long id;
+//    @Id
+//    private long id;
     private Long employeeId;
 
     private PhoneType phoneType;
@@ -27,7 +27,7 @@ public class EmployeePhone {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        EmployeePhone that = (EmployeePhone) o;
+        Phone that = (Phone) o;
         return Objects.equals(code, that.code) && Objects.equals(number, that.number);
     }
 

@@ -14,9 +14,9 @@ import java.util.Objects;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class EmployeeRoster {
+public class Roster {
 
-    public EmployeeRoster(long employeeId, DayOfWeek weekday, LocalDate start, LocalDate end, List<EmployeeRosterSlot> slots) {
+    public Roster(long employeeId, DayOfWeek weekday, LocalDate start, LocalDate end, List<EmployeeRosterSlot> slots) {
         this.employeeId = employeeId;
         this.weekday = weekday;
         this.start = start;
@@ -42,7 +42,7 @@ public class EmployeeRoster {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        EmployeeRoster that = (EmployeeRoster) o;
+        Roster that = (Roster) o;
         return Objects.equals(employeeId, that.employeeId) && weekday == that.weekday;
     }
 

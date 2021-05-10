@@ -7,12 +7,12 @@ import org.springframework.data.annotation.Id;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class EmployeeFamilyMember {
+public class FamilyMember {
 
     @Id
     private long id;
     private Long employeeId;
-    private Kinship kinship;
+    private int kinship;
     private String name;
 
     public enum Kinship{

@@ -1,9 +1,9 @@
 package com.bookanapp.employee.repositories;
 
-import com.bookanapp.employee.entities.EmployeePhone;
+import com.bookanapp.employee.entities.Phone;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
 
-public interface EmployeePhoneRepository extends ReactiveCrudRepository<EmployeePhone, Long> {
-    Flux<EmployeePhone> getAllByEmployeeId(long employeeId);
+public interface EmployeePhoneRepository extends ReactiveCrudRepository<Phone, Long> {
+    Flux<Phone> getAllByEmployeeId(long employeeId);
 }

@@ -24,4 +24,10 @@ public class Forms {
         String message;
     }
 
+    @Data
+    @AllArgsConstructor
+    public static class DeleteForm {
+        List<String> idsToDelete;
+
+    }
 }

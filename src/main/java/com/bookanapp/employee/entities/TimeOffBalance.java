@@ -4,7 +4,7 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 
 @Data
-public class EmployeeTimeOffBalance {
+public class TimeOffBalance {
 
     @Id
     private long id;
@@ -17,10 +17,10 @@ public class EmployeeTimeOffBalance {
     private float compensationDays;
     private float compensationRolloverDays;
 
-    public EmployeeTimeOffBalance(long employeeId,
-                                  float vacationDays, float vacationRolloverDays,
-                                  float complimentaryBankHolidayDays,
-                                  float complimentaryBankHolidayRolloverDays, float compensationDays, float compensationRolloverDays) {
+    public TimeOffBalance(long employeeId,
+                          float vacationDays, float vacationRolloverDays,
+                          float complimentaryBankHolidayDays,
+                          float complimentaryBankHolidayRolloverDays, float compensationDays, float compensationRolloverDays) {
         this.employeeId = employeeId;
         this.vacationDays = vacationDays;
         this.vacationRolloverDays = vacationRolloverDays;
