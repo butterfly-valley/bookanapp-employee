@@ -37,4 +37,8 @@ public class EmployeeService {
     public Mono<List<Employee>> getAllEmployees(long providerId) {
         return this.employeeRepository.getAllByProviderId(providerId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
+
+    public Mono<List<Employee>> getAllEmployeesByName(long providerId, String term) {
+        return this.employeeRepository.getAllByProviderIdAndNameContaining(providerId, term).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
 }

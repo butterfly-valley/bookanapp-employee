@@ -7,4 +7,5 @@ import reactor.core.publisher.Flux;
 public interface EmployeeRepository extends ReactiveCrudRepository<Employee, Long> {
 
     Flux<Employee> getAllByProviderId(long providerId);
+    Flux<Employee> getAllByProviderIdAndNameContaining(long providerId, String term);
 }

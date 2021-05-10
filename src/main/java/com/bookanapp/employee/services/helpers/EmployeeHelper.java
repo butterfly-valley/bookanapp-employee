@@ -50,6 +50,37 @@ public class EmployeeHelper {
 
     }
 
+    public Mono<ResponseEntity> findEmployeeByName(String term) {
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> this.employeeService.getAllEmployees(providerId)
+
+                        .flatMap(currentUser -> {
+                            if (currentUser instanceof EmployeeDetails) {
+                                long loggedUserId = ((EmployeeDetails) currentUser).getId();
+
+
+                                return this.employeeService.getAllEmployeesByName(providerId, term)
+                                        .flatMap(employees -> filterEmployeeByName(employees.stream()
+                                                .filter(employee -> employee.getId() != loggedUserId)
+                                                .collect(Collectors.toList())));
+
+
+                            } else {
+                                return this.employeeService.getAllEmployeesByName(providerId, term)
+                                        .flatMap(this::filterEmployeeByName);
+
+                            }
+                        })
+                );
+    }
+
+    private Mono<ResponseEntity> filterEmployeeByName(List<Employee> employees) {
+        return Flux.fromIterable(employees)
+                .flatMap(this::buildShortEmployeeEntity)
+                .collectList()
+                .flatMap(employeeEntities -> Mono.just(ResponseEntity.ok(employeeEntities)));
+    }
+
     private Mono<ResponseEntity> filteredEmployees(List<Employee> employees, Integer page, Integer employeesPerPage) {
         var map = new Forms.EmployeeMap();
 
@@ -130,19 +161,19 @@ public class EmployeeHelper {
     }
 
     private Mono<EmployeeEntity> buildShortEmployeeEntity(Employee employee) {
-         if (employee.getSubdivisionId() != null) {
+        if (employee.getSubdivisionId() != null) {
             return this.employeeService.getSubdivision(employee.getSubdivisionId())
                     .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
-                    .flatMap(division -> Mono.just(EmployeeEntity.builder()
-                            .id(employee.getId())
-                            .name(employee.getName())
-                            .avatar(employee.getAvatar())
-                            .subdivision(subdivision.getName())
-                            .division(division.getName())
-                            .subdivisionId(subdivision.getSubdivisionId())
-                            .divisionId(subdivision.getDivisionId())
-                            .jobTitle(employee.getJobTitle())
-                            .build()))
+                            .flatMap(division -> Mono.just(EmployeeEntity.builder()
+                                    .id(employee.getId())
+                                    .name(employee.getName())
+                                    .avatar(employee.getAvatar())
+                                    .subdivision(subdivision.getName())
+                                    .division(division.getName())
+                                    .subdivisionId(subdivision.getSubdivisionId())
+                                    .divisionId(subdivision.getDivisionId())
+                                    .jobTitle(employee.getJobTitle())
+                                    .build()))
                     );
         } else {
             return Mono.just(EmployeeEntity.builder()
@@ -155,6 +186,7 @@ public class EmployeeHelper {
 
 
     }
+
 
 
 }
