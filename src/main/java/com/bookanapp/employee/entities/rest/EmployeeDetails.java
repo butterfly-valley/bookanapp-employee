@@ -1,14 +1,11 @@
 package com.bookanapp.employee.entities.rest;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Transient;
-import org.springframework.security.core.CredentialsContainer;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -17,8 +14,7 @@ import java.util.Objects;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class SubProviderDetails implements UserDetails, CredentialsContainer, Cloneable, Serializable {
+public class EmployeeDetails implements UserDetails{
     private static final long serialVersionUID = 1L;
 
     private long id;
@@ -30,8 +26,9 @@ public class SubProviderDetails implements UserDetails, CredentialsContainer, Cl
     private boolean accountNonLocked;
     private boolean credentialsNonExpired;
     private boolean enabled;
+    private long providerId;
 
-    public SubProviderDetails(long id, List<ProviderAuthority> authorities) {
+    public EmployeeDetails(long id, List<ProviderAuthority> authorities) {
         this.id = id;
         this.authorities = authorities;
         this.accountNonExpired = true;
@@ -40,10 +37,6 @@ public class SubProviderDetails implements UserDetails, CredentialsContainer, Cl
         this.enabled = true;
     }
 
-    @Override
-    public void eraseCredentials() {
-
-    }
 
     @Override
     public List<ProviderAuthority> getAuthorities() {
@@ -87,8 +80,8 @@ public class SubProviderDetails implements UserDetails, CredentialsContainer, Cl
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof SubProviderDetails)) return false;
-        SubProviderDetails that = (SubProviderDetails) o;
+        if (!(o instanceof EmployeeDetails)) return false;
+        EmployeeDetails that = (EmployeeDetails) o;
         return id == that.id;
     }
 

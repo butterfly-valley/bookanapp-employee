@@ -11,9 +11,7 @@ import java.util.Objects;
 
 @Data
 @NoArgsConstructor
-public class AuthorizedSchedule implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class AuthorizedSchedule {
 
     @Id
     private long id;

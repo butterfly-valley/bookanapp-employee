@@ -3,7 +3,7 @@ package com.bookanapp.employee.services.helpers;
 import com.bookanapp.employee.config.security.jwt.JwtTokenProvider;
 import com.bookanapp.employee.entities.rest.Provider;
 import com.bookanapp.employee.entities.rest.ProviderDetails;
-import com.bookanapp.employee.entities.rest.SubProviderDetails;
+import com.bookanapp.employee.entities.rest.EmployeeDetails;
 import com.bookanapp.employee.services.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,8 +31,8 @@ public class CommonHelper {
                 context -> {
                     UserDetails user;
                     Authentication authentication = context.getAuthentication();
-                    if (authentication.getPrincipal() instanceof SubProviderDetails){
-                        user=(SubProviderDetails) authentication.getPrincipal();
+                    if (authentication.getPrincipal() instanceof EmployeeDetails){
+                        user=(EmployeeDetails) authentication.getPrincipal();
                     } else {
                         user=(ProviderDetails) authentication.getPrincipal();
                     }
@@ -42,33 +42,22 @@ public class CommonHelper {
         );
     }
 
-    public Mono<Provider> getCurrentProvider() {
-        return getCurrentUser()
-                .flatMap(userDetails -> {
-                    if (userDetails instanceof SubProviderDetails){
-                        return this.employeeService.getEmployee(((SubProviderDetails) userDetails).getId())
-                                .flatMap(employee -> {
-                                    //retrieve provider details
-                                    var client = this.buildAPIAccessWebClient(this.providerServiceUrl + "/provider/get/" + employee.getProviderId());
-                                    return client.get()
-                                            .retrieve()
-                                            .bodyToMono(Provider.class)
-                                            .flatMap(Mono::just);
-                                            });
-
+    public Mono<Long> getCurrentProviderId() {
+        return context.flatMap(
+                context -> {
+                    UserDetails userDetails = (UserDetails) context.getAuthentication().getPrincipal();
+                    if (userDetails instanceof ProviderDetails) {
+                        return Mono.just(((ProviderDetails) userDetails).getId());
+                    } else if (userDetails instanceof EmployeeDetails){
+                        return Mono.just(((EmployeeDetails) userDetails).getProviderId());
                     } else {
-
-                        var client = this.buildAPIAccessWebClient(this.providerServiceUrl + "/provider/get/" + ((ProviderDetails) userDetails).getId());
-                        return client.get()
-                                .retrieve()
-                                .bodyToMono(Provider.class)
-                                .flatMap(Mono::just);
+                        return Mono.empty();
                     }
 
-                });
+                }
+        );
 
     }
-
     public WebClient buildAPIAccessWebClient(String url) {
         return WebClient.builder()
                 .baseUrl(url)

@@ -38,6 +38,10 @@ public class Provider implements Cloneable, Serializable {
     private String usedReferralCode;
     private String emailVerificationToken;
 
+    public Provider(long id) {
+        this.id = id;
+    }
+
     @Override
     public int hashCode()
     {

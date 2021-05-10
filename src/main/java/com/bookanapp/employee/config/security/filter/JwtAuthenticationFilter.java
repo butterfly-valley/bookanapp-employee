@@ -3,7 +3,7 @@ package com.bookanapp.employee.config.security.filter;
 import com.bookanapp.employee.config.security.jwt.JwtTokenProvider;
 import com.bookanapp.employee.entities.rest.ProviderAuthority;
 import com.bookanapp.employee.entities.rest.ProviderDetails;
-import com.bookanapp.employee.entities.rest.SubProviderDetails;
+import com.bookanapp.employee.entities.rest.EmployeeDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -70,7 +70,7 @@ public class JwtAuthenticationFilter implements WebFilter {
                         if (firstEntryOfEntry.getKey().equals("provider")) {
                             userDetails = new ProviderDetails(firstEntry.getKey(), authorities);
                         } else {
-                            userDetails = new SubProviderDetails(firstEntry.getKey(), authorities);
+                            userDetails = new EmployeeDetails(firstEntry.getKey(), authorities);
                         }
 
                         return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(userDetails, null, authorities))
