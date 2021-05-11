@@ -19,9 +19,12 @@ import java.util.List;
 @Builder
 public class Employee {
 
-    @Column("employee_id")
+
+    @Column("id")
     @Id
-    private long id;
+    private long entityId;
+    @Column("employee_id")
+    private Long id;
     private String username;
     private String name;
     private LocalDate registerDate;

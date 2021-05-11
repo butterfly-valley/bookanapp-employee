@@ -29,6 +29,9 @@ public class EmployeeService {
     public Mono<Employee> getEmployee(long id) {
         return this.employeeRepository.findById(id);
     }
+    public Mono<Employee> getEmployeeByUsername(long providerId, String username) {
+        return this.employeeRepository.getByProviderIdAndUsername(providerId, username);
+    }
     public Mono<Employee> saveEmployee(Employee employee) {
         return this.employeeRepository.save(employee);
     }

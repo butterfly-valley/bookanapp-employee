@@ -71,12 +71,12 @@ public class EmployeeController {
             " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
     public Mono<? extends ResponseEntity> addNewEmployee(@RequestBody @Valid Mono<Forms.NewEmployeeForm> employeeFormMono) {
           return employeeFormMono
-                  .flatMap(form -> this.employeeHelper.createNewEmployee(form))
+                  .flatMap(this.employeeHelper::createNewEmployee)
                   .onErrorResume(e -> {
                       if (e instanceof WebExchangeBindException) {
                           return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
                       } else {
-                          log.error("Error editing provider account, e: " + e.getMessage());
+                          log.error("Error registering new employee, error: " + e.getMessage());
                           return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("newUserError")));
                       }
                   })

@@ -2,15 +2,13 @@ package com.bookanapp.employee.services.helpers;
 
 import com.bookanapp.employee.entities.*;
 import com.bookanapp.employee.entities.rest.*;
-import com.bookanapp.employee.repositories.EmployeeTimeOffRepository;
 import com.bookanapp.employee.services.EmployeeService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.support.PagedListHolder;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -19,6 +17,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmployeeHelper {
 
     private final CommonHelper commonHelper;
@@ -169,6 +168,8 @@ public class EmployeeHelper {
                                                                                                     Subdivision subdivision = null;
                                                                                                     var timeOffBalance = new TimeOffBalance(employeeId, 0,0,0,0,0,0);
                                                                                                     var employee = Employee.builder()
+                                                                                                            .id(employeeId)
+                                                                                                            .providerId(providerId)
                                                                                                             .name(form.name)
                                                                                                             .username(form.email)
                                                                                                             .subdivision(subdivision)
@@ -184,7 +185,13 @@ public class EmployeeHelper {
                                                                                                 }
                                                                                         )
                                                                                 )
-                                                                        );
+                                                                        )
+                                                                        .cast(ResponseEntity.class)
+                                                                        .onErrorResume(e -> {
+                                                                            log.error("Error registering new employee, error: " + e.getMessage());
+                                                                            return this.deleteEmployeeDetails(employeeId)
+                                                                                    .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("newUserError"))));
+                                                                        });
 
 
 
@@ -234,9 +241,33 @@ public class EmployeeHelper {
 
     }
 
+    private Mono<String> deleteEmployeeDetails(long id) {
+        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/delete/" + id);
+        return client.get()
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(response -> this.employeeService.getEmployee(id)
+                        .switchIfEmpty(Mono.just(new Employee()))
+                        .flatMap(employee -> {
+                            if (employee.getId() != null) {
+                                return this.employeeService.deleteEmployee(employee)
+                                        .then(Mono.just("ok"));
+                            } else {
+                                return Mono.just("ok");
+                            }
+                        })
+
+                );
+
+    }
+
     private Mono<ResponseEntity> persistNewEmployee(Employee emp) {
         return this.employeeService.saveEmployee(emp)
-                .then(this.employeeService.saveTimeOff(emp.getTimeOffBalance()))
+                .flatMap(e -> this.employeeService.getEmployeeByUsername(e.getProviderId(), e.getUsername()))
+                .flatMap(employee -> {
+                    employee.getId();
+                    return this.employeeService.saveTimeOff(emp.getTimeOffBalance());
+                })
                 .flatMap(timeOff -> {
                     List<AuthorizedSchedule> authorizedSchedules = new ArrayList<>();
                     emp.getAuthorizedSchedules().forEach(authorizedSchedule -> authorizedSchedules.add(new AuthorizedSchedule(emp.getId(), authorizedSchedule)));
