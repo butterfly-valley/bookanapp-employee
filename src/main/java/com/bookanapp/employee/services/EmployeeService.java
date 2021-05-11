@@ -29,7 +29,12 @@ public class EmployeeService {
     public Mono<Employee> getEmployee(long id) {
         return this.employeeRepository.findById(id);
     }
-
+    public Mono<Employee> saveEmployee(Employee employee) {
+        return this.employeeRepository.save(employee);
+    }
+    public Mono<Void> deleteEmployee(Employee employee) {
+        return this.employeeRepository.delete(employee);
+    }
     public Mono<Division> getDivision(long id) {
         return this.divisionRepository.findById(id);
     }
@@ -37,7 +42,9 @@ public class EmployeeService {
     public Mono<Subdivision> getSubdivision(long id) {
         return this.subdivisionRepository.findById(id);
     }
-
+    public Mono<List<Subdivision>> getSubdivisions(long divisionId) {
+        return this.subdivisionRepository.findAllByDivisionId(divisionId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
 
     public Mono<List<Employee>> getAllEmployees(long providerId) {
         return this.employeeRepository.getAllByProviderId(providerId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
@@ -49,6 +56,9 @@ public class EmployeeService {
 
     public Mono<TimeOffBalance> getTimeOff(long id) {
         return this.employeeTimeOffRepository.getByEmployeeId(id);
+    }
+    public Mono<TimeOffBalance> saveTimeOff(TimeOffBalance balance) {
+        return this.employeeTimeOffRepository.save(balance);
     }
 
     public Mono<Address> getAddress(long id) {
@@ -67,9 +77,18 @@ public class EmployeeService {
         return this.authorizedScheduleRepository.findAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
 
+    public Mono<List<AuthorizedSchedule>> saveAuthorizedSchedules(List<AuthorizedSchedule> authorizedSchedules) {
+        return this.authorizedScheduleRepository.saveAll(authorizedSchedules).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
     public Mono<List<AuthorizedRoster>> getAuthorizedRosters(long employeeId) {
         return this.authorizedRosterRepository.findAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
+
+    public Mono<List<AuthorizedRoster>> saveAuthorizedRosters(List<AuthorizedRoster> authorizedRosters) {
+        return this.authorizedRosterRepository.saveAll(authorizedRosters).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
 
     public Mono<List<TimeOffRequest>> getTimeOffRequest(long employeeId) {
         return this.timeOffRequestRepository.getAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));

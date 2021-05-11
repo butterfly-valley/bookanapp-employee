@@ -2,13 +2,17 @@ package com.bookanapp.employee.controllers;
 
 
 import com.bookanapp.employee.services.helpers.EmployeeHelper;
+import com.bookanapp.employee.services.helpers.Forms;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.support.WebExchangeBindException;
 import reactor.core.publisher.Mono;
+
+import javax.validation.Valid;
 
 @RestController
 @CrossOrigin()
@@ -62,16 +66,34 @@ public class EmployeeController {
 
     }
 
+    @PostMapping("/create")
+    @PreAuthorize( "hasAuthority('PROVIDER')" +
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+    public Mono<? extends ResponseEntity> addNewEmployee(@RequestBody @Valid Mono<Forms.NewEmployeeForm> employeeFormMono) {
+          return employeeFormMono
+                  .flatMap(form -> this.employeeHelper.createNewEmployee(form))
+                  .onErrorResume(e -> {
+                      if (e instanceof WebExchangeBindException) {
+                          return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+                      } else {
+                          log.error("Error editing provider account, e: " + e.getMessage());
+                          return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("newUserError")));
+                      }
+                  })
+;
+
+    }
+
     @GetMapping(value="/get/time/list/{id}")
     @PreAuthorize( "hasAuthority('PROVIDER')" +
             " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
     public Mono<? extends ResponseEntity> getListOfTimeRequests(@PathVariable("id") long id) {
 
-        return this.employeeHelper.getListOfTimeRequests(id);
-//                .onErrorResume(e -> {
-//                    log.error("Error returning employee timeoff requests, error: " + e.getMessage());
-//                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
-//                });
+        return this.employeeHelper.getListOfTimeRequests(id)
+                .onErrorResume(e -> {
+                    log.error("Error returning employee timeoff requests, error: " + e.getMessage());
+                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                });
 
     }
 
