@@ -23,6 +23,7 @@ public class EmployeeService {
     private final EmployeeAddressRepository employeeAddressRepository;
     private final AuthorizedScheduleRepository authorizedScheduleRepository;
     private final AuthorizedRosterRepository authorizedRosterRepository;
+    private final TimeOffRequestRepository timeOffRequestRepository;
 
 
     public Mono<Employee> getEmployee(long id) {
@@ -69,5 +70,10 @@ public class EmployeeService {
     public Mono<List<AuthorizedRoster>> getAuthorizedRosters(long employeeId) {
         return this.authorizedRosterRepository.findAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
+
+    public Mono<List<TimeOffRequest>> getTimeOffRequest(long employeeId) {
+        return this.timeOffRequestRepository.getAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
 
 }

@@ -56,9 +56,22 @@ public class EmployeeController {
 
         return this.employeeHelper.showEmployee(id)
                 .onErrorResume(e -> {
-                    log.error("Error searching employees by name for providerId, error: " + e.getMessage());
+                    log.error("Error returning employee info, error: " + e.getMessage());
                     return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
                 });
+
+    }
+
+    @GetMapping(value="/get/time/list/{id}")
+    @PreAuthorize( "hasAuthority('PROVIDER')" +
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+    public Mono<? extends ResponseEntity> getListOfTimeRequests(@PathVariable("id") long id) {
+
+        return this.employeeHelper.getListOfTimeRequests(id);
+//                .onErrorResume(e -> {
+//                    log.error("Error returning employee timeoff requests, error: " + e.getMessage());
+//                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+//                });
 
     }
 

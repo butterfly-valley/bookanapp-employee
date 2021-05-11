@@ -26,7 +26,7 @@ public class Forms {
 
     @Data
     @AllArgsConstructor
-    public static class DeleteForm {
+    public static class ListStringForm {
         List<String> idsToDelete;
 
     }
