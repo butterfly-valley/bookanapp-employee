@@ -41,12 +41,30 @@ public class EmployeeService {
     public Mono<Division> getDivision(long id) {
         return this.divisionRepository.findById(id);
     }
+    public Mono<Division> saveDivision(Division division) {
+        return this.divisionRepository.save(division);
+    }
 
     public Mono<Subdivision> getSubdivision(long id) {
         return this.subdivisionRepository.findById(id);
     }
+
+    public Mono<Subdivision> saveSubdivision(Subdivision subdivision) {
+        return this.subdivisionRepository.save(subdivision);
+    }
     public Mono<List<Subdivision>> getSubdivisions(long divisionId) {
         return this.subdivisionRepository.findAllByDivisionId(divisionId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+    public Mono<Subdivision> getSubdivisionByName(long divisionId, String name) {
+        return this.subdivisionRepository.findByDivisionIdAndName(divisionId, name);
+    }
+    public Mono<List<Division>> getDivisions(long providerId) {
+        return this.divisionRepository.findAllByProviderId(providerId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+    public Mono<Division> getDivisionByName(long providerId, String name) {
+        return this.divisionRepository.findByProviderIdAndName(providerId, name);
     }
 
     public Mono<List<Employee>> getAllEmployees(long providerId) {

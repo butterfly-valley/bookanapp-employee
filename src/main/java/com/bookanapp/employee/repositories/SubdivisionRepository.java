@@ -7,5 +7,6 @@ import reactor.core.publisher.Mono;
 
 public interface SubdivisionRepository extends ReactiveCrudRepository<Subdivision, Long> {
     Flux<Subdivision> findAllByDivisionId(long divisionId);
+    Mono<Subdivision> findByDivisionIdAndName(long divisionId, String name);
 
 }

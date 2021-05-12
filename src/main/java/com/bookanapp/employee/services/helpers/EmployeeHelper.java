@@ -4,7 +4,6 @@ import com.bookanapp.employee.entities.*;
 import com.bookanapp.employee.entities.rest.*;
 import com.bookanapp.employee.services.EmployeeService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.support.PagedListHolder;
 import org.springframework.http.ResponseEntity;
@@ -162,17 +161,16 @@ public class EmployeeHelper {
 
                                                                 return this.setAuthorizedSchedules(form, providerId)
                                                                         .flatMap(authorizedSchedules -> this.setAuthorizedRosters(form, providerId)
-                                                                                .flatMap(authorizedRosters -> this.setPersonalAuthorizedRosters(form.subdivisionId, employeeId)
+                                                                                .flatMap(authorizedRosters -> this.setPersonalAuthorizedRosters(form.subdivisionId, providerId)
                                                                                         .flatMap(personalRosters -> {
                                                                                                     authorizedRosters.addAll(personalRosters);
-                                                                                                    Subdivision subdivision = null;
+
                                                                                                     var timeOffBalance = new TimeOffBalance(employeeId, 0,0,0,0,0,0);
                                                                                                     var employee = Employee.builder()
                                                                                                             .id(employeeId)
                                                                                                             .providerId(providerId)
                                                                                                             .name(form.name)
                                                                                                             .username(form.email)
-                                                                                                            .subdivision(subdivision)
                                                                                                             .jobTitle(form.jobTitle)
                                                                                                             .personalEmail(form.personalEmail)
                                                                                                             .timeOffBalance(timeOffBalance)
@@ -181,7 +179,23 @@ public class EmployeeHelper {
                                                                                                             .authorities(authorities.stream().map(EmployeeAuthority::getAuthority).collect(Collectors.toList()))
                                                                                                             .build();
 
-                                                                                                    return this.persistNewEmployee(employee);
+                                                                                                    if (form.subdivisionId != null){
+                                                                                                        return this.checkSubdivision(providerId, form.subdivisionId)
+                                                                                                                .flatMap(bool -> {
+                                                                                                                    if (bool){
+                                                                                                                        employee.setSubdivisionId(form.subdivisionId);
+                                                                                                                    }
+                                                                                                                    return this.persistNewEmployee(employee);
+                                                                                                                });
+                                                                                                    } else if (form.division!=null && form.subdivision !=null && form.division.length()>1 && form.subdivision.length()>1) {
+                                                                                                        return this.findSubdivision(providerId, form.division, form.subdivision)
+                                                                                                                .flatMap(subdivisionId -> {
+                                                                                                                    employee.setSubdivisionId(subdivisionId);
+                                                                                                                    return this.persistNewEmployee(employee);
+                                                                                                                });
+                                                                                                    } else {
+                                                                                                        return this.persistNewEmployee(employee);
+                                                                                                    }
                                                                                                 }
                                                                                         )
                                                                                 )
@@ -209,6 +223,81 @@ public class EmployeeHelper {
 
                 });
     }
+
+    public Mono<ResponseEntity> editEmployee(long id, Forms.NewEmployeeForm form) {
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> this.employeeService.getEmployee(id)
+                        .flatMap(employee -> {
+
+                                    if (employee.getProviderId() == providerId) {
+
+                                        var authClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/provider/authorities/" + providerId);
+
+                                        return authClient.get()
+                                                .retrieve()
+                                                .bodyToMono(ProviderAuthority[].class)
+                                                .flatMap(providerAuthorityArray -> {
+                                                            var providerAuthorities = Arrays.asList(providerAuthorityArray);
+
+                                                            return this.employeeService.getAllEmployees(providerId)
+                                                                    .flatMap(employees -> {
+                                                                        List<EmployeeAuthority> authorities = new ArrayList<>();
+
+                                                                        for (ProviderAuthority userAuthority : providerAuthorities) {
+                                                                            if (userAuthority.getAuthority().contains("ENTERPRISE"))
+                                                                                authorities.add(new EmployeeAuthority("ROLE_ENTERPRISE"));
+                                                                            if (userAuthority.getAuthority().contains("BUSINESS"))
+                                                                                authorities.add(new EmployeeAuthority("ROLE_BUSINESS"));
+                                                                            if (userAuthority.getAuthority().contains("ROLE_PRO"))
+                                                                                authorities.add(new EmployeeAuthority("ROLE_PRO"));
+                                                                        }
+
+
+                                                                        form.authorizations.forEach(auth -> authorities.add(new EmployeeAuthority(auth)));
+                                                                        authorities.add(new EmployeeAuthority("SUBPROVIDER_ROSTER_VIEW"));
+
+                                                                        List<String> auths = new ArrayList<>();
+                                                                        authorities.forEach(auth -> auths.add(auth.getAuthority()));
+
+                                                                        var authorityForm = new Forms.ListOfStringsForm(auths);
+
+                                                                        var updateAuthoritiesClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/authorities/update/" + id);
+
+                                                                        return updateAuthoritiesClient.post()
+                                                                                .body(Mono.just(authorityForm), Forms.ListOfStringsForm.class)
+                                                                                .retrieve()
+                                                                                .bodyToMono(String.class)
+                                                                                .flatMap(response -> {
+                                                                                    if (response.equals("ok")) {
+                                                                                        return this.setAuthorizedSchedules(form, providerId)
+                                                                                                .flatMap(authorizedSchedules -> this.setAuthorizedRosters(form, providerId)
+                                                                                                        .flatMap(authorizedRosters -> this.setPersonalAuthorizedRosters(form.subdivisionId, id)
+                                                                                                                .flatMap(personalRosters -> {
+                                                                                                                            authorizedRosters.addAll(personalRosters);
+                                                                                                                            return this.persistNewEmployee(employee);
+                                                                                                                        }
+                                                                                                                )
+                                                                                                        )
+                                                                                                );
+
+                                                                                    } else {
+                                                                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("editError")));
+                                                                                    }
+                                                                                });
+
+                                                                    });
+
+                                                        }
+                                                );
+                                    } else {
+                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
+                                    }
+
+                                }
+                        )
+                );
+    }
+
 
     public Mono<ResponseEntity> getListOfTimeRequests(long id){
 
@@ -240,6 +329,41 @@ public class EmployeeHelper {
 
 
     }
+
+    private Mono<Boolean> checkSubdivision(long providerId, long subdivisionId) {
+        return this.employeeService.getSubdivision(subdivisionId)
+                .switchIfEmpty(Mono.defer(() -> Mono.just(new Subdivision())))
+                .flatMap(subdivision -> {
+                    if (subdivision.getSubdivisionId() > 0) {
+                        return this.employeeService.getDivision(subdivision.getDivisionId())
+                                .flatMap(division -> Mono.just(division.getProviderId() == providerId));
+                    } else {
+                        return Mono.just(false);
+                    }
+                });
+    }
+
+
+    private Mono<Long> findSubdivision(long providerId, String divisionName, String subdivisionName) {
+        return this.employeeService.getDivisionByName(providerId, divisionName)
+                .switchIfEmpty(Mono.defer(() -> this.saveDivision(providerId, divisionName)))
+                .flatMap(division -> this.employeeService.getSubdivisionByName(division.getDivisionId(), subdivisionName)
+                        .switchIfEmpty(Mono.defer(() -> this.saveSubdivision(division.getDivisionId(), subdivisionName)))
+                        .flatMap(subdivision -> Mono.just(subdivision.getSubdivisionId())));
+    }
+
+    private Mono<Division> saveDivision(long providerId, String name) {
+        var division = new Division(providerId, name);
+        return this.employeeService.saveDivision(division)
+                .flatMap(savedDivision -> this.employeeService.getDivisionByName(providerId, name));
+    }
+
+    private Mono<Subdivision> saveSubdivision(long divisionId, String name) {
+        var subdivision = new Subdivision(divisionId, name);
+        return this.employeeService.saveSubdivision(subdivision)
+                .flatMap(savedDivision -> this.employeeService.getSubdivisionByName(divisionId, name));
+    }
+
 
     private Mono<String> deleteEmployeeDetails(String username, long providerId, long employeeId) {
         var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/delete/" + employeeId);
@@ -278,23 +402,45 @@ public class EmployeeHelper {
                 });
     }
 
-    private Mono<List<Long>> setPersonalAuthorizedRosters (Long subDivisionId, long employeeId) {
+    private Mono<List<Long>> setPersonalAuthorizedRosters (Long subDivisionId, long providerId) {
         if (subDivisionId != null) {
-            return this.employeeService.getSubdivision(employeeId)
-                    .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
-                            .flatMap(division -> this.employeeService.getSubdivisions(division.getDivisionId())
-                                    .flatMap(subdivisions -> {
-                                        List<Long> authorizedRosters = new ArrayList<>();
-                                        subdivisions.forEach(sub ->  authorizedRosters.add(sub.getSubdivisionId()));
-                                        return Mono.just(authorizedRosters);
-                                    })
-                            )
-                    );
 
+            return this.checkSubdivision(providerId, subDivisionId)
+                    .flatMap(bool -> {
+                        if (bool) {
+                            return this.employeeService.getSubdivision(subDivisionId)
+                                    .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                                            .flatMap(division -> this.employeeService.getSubdivisions(division.getDivisionId())
+                                                    .flatMap(subdivisions -> {
+                                                        List<Long> authorizedRosters = new ArrayList<>();
+                                                        subdivisions.forEach(sub ->  authorizedRosters.add(sub.getSubdivisionId()));
+                                                        return Mono.just(authorizedRosters);
+                                                    })
+                                            )
+                                    );
+
+                        } else {
+                            return Mono.just(new ArrayList<>());
+                        }
+                    });
 
         } else {
             return Mono.just(new ArrayList<>());
         }
+    }
+
+    private Mono<Subdivision> loadSubdivision(Long subDivisionId, long providerId) {
+        return this.employeeService.getSubdivision(subDivisionId)
+                .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                        .flatMap(division -> {
+                                    if (division.getProviderId() == providerId) {
+                                        return Mono.just(subdivision);
+                                    } else {
+                                        return Mono.empty();
+                                    }
+                                }
+                        )
+                );
     }
 
     private Mono<List<Long>> setAuthorizedRosters (Forms.NewEmployeeForm employeeForm, long providerId) {
@@ -591,7 +737,7 @@ public class EmployeeHelper {
 
                                             var webclient = this.commonHelper.buildAPIAccessWebClient(commonHelper.appointmentServiceUrl + "/employee/schedules");
                                             return webclient.post()
-                                                    .body(Mono.just(new Forms.ListStringForm(ids)), Forms.ListStringForm.class)
+                                                    .body(Mono.just(new Forms.ListOfStringsForm(ids)), Forms.ListOfStringsForm.class)
                                                     .retrieve()
                                                     .bodyToMono(String[].class)
                                                     .flatMap(scheduleList -> {

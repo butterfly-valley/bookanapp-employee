@@ -33,7 +33,7 @@ public class Forms {
 
     @Data
     @AllArgsConstructor
-    public static class ListStringForm {
+    public static class ListOfStringsForm {
         List<String> idsToDelete;
 
     }

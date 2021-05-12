@@ -17,4 +17,9 @@ public class Division {
     private long providerId;
     @NotBlank
     private String name;
+
+    public Division(long providerId, String name) {
+        this.providerId = providerId;
+        this.name = name;
+    }
 }
