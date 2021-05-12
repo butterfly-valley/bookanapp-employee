@@ -11,12 +11,12 @@ import java.util.Objects;
 @NoArgsConstructor
 public class AuthorizedRoster {
 
-//    @Id
-//    private long id;
+    @Id
+    private long id;
     private long employeeId ;
     private long rosterId;
 
-    public AuthorizedRoster(long employeeId, long scheduleId) {
+    public AuthorizedRoster(long employeeId, long rosterId) {
         this.employeeId = employeeId;
         this.rosterId = rosterId;
     }

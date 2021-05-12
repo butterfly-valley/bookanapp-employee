@@ -189,7 +189,7 @@ public class EmployeeHelper {
                                                                         .cast(ResponseEntity.class)
                                                                         .onErrorResume(e -> {
                                                                             log.error("Error registering new employee, error: " + e.getMessage());
-                                                                            return this.deleteEmployeeDetails(employeeId)
+                                                                            return this.deleteEmployeeDetails(form.email, providerId, employeeId)
                                                                                     .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("newUserError"))));
                                                                         });
 
@@ -241,12 +241,12 @@ public class EmployeeHelper {
 
     }
 
-    private Mono<String> deleteEmployeeDetails(long id) {
-        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/delete/" + id);
+    private Mono<String> deleteEmployeeDetails(String username, long providerId, long employeeId) {
+        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/delete/" + employeeId);
         return client.get()
                 .retrieve()
                 .bodyToMono(String.class)
-                .flatMap(response -> this.employeeService.getEmployee(id)
+                .flatMap(response -> this.employeeService.getEmployeeByUsername(providerId, username)
                         .switchIfEmpty(Mono.just(new Employee()))
                         .flatMap(employee -> {
                             if (employee.getId() != null) {
@@ -264,10 +264,7 @@ public class EmployeeHelper {
     private Mono<ResponseEntity> persistNewEmployee(Employee emp) {
         return this.employeeService.saveEmployee(emp)
                 .flatMap(e -> this.employeeService.getEmployeeByUsername(e.getProviderId(), e.getUsername()))
-                .flatMap(employee -> {
-                    employee.getId();
-                    return this.employeeService.saveTimeOff(emp.getTimeOffBalance());
-                })
+                .flatMap(employee -> this.employeeService.saveTimeOff(emp.getTimeOffBalance()))
                 .flatMap(timeOff -> {
                     List<AuthorizedSchedule> authorizedSchedules = new ArrayList<>();
                     emp.getAuthorizedSchedules().forEach(authorizedSchedule -> authorizedSchedules.add(new AuthorizedSchedule(emp.getId(), authorizedSchedule)));
