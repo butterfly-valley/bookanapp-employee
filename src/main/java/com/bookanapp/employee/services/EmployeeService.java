@@ -98,6 +98,11 @@ public class EmployeeService {
         return this.authorizedScheduleRepository.findAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
 
+    public Mono<Void> deleteAuthorizedSchedules(List<AuthorizedSchedule> authorizedSchedules) {
+        return this.authorizedScheduleRepository.deleteAll(authorizedSchedules);
+    }
+
+
     public Mono<List<AuthorizedSchedule>> saveAuthorizedSchedules(List<AuthorizedSchedule> authorizedSchedules) {
         return this.authorizedScheduleRepository.saveAll(authorizedSchedules).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }

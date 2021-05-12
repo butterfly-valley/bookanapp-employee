@@ -159,7 +159,7 @@ public class EmployeeHelper {
 
                                                                 var employeeId = Long.parseLong(response);
 
-                                                                return this.setAuthorizedSchedules(form, providerId)
+                                                                return this.setAuthorizedSchedules(form, providerId, null, false)
                                                                         .flatMap(authorizedSchedules -> this.setAuthorizedRosters(form, providerId)
                                                                                 .flatMap(authorizedRosters -> this.setPersonalAuthorizedRosters(form.subdivisionId, providerId)
                                                                                         .flatMap(personalRosters -> {
@@ -179,7 +179,7 @@ public class EmployeeHelper {
                                                                                                             .authorities(authorities.stream().map(EmployeeAuthority::getAuthority).collect(Collectors.toList()))
                                                                                                             .build();
 
-                                                                                                    return persistEmployee(form, providerId, employee, false);
+                                                                                                    return persistSubdivision(form, providerId, employee, false);
                                                                                                 }
                                                                                         )
                                                                                 )
@@ -238,13 +238,17 @@ public class EmployeeHelper {
 
                                                     var updateAuthoritiesClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/authorities/update/" + id);
 
+                                                    employee.setPersonalEmail(form.personalEmail);
+                                                    employee.setName(form.name);
+                                                    employee.setTaxPayerId(form.taxId);
+                                                    employee.setAuthorities(auths);
                                                     return updateAuthoritiesClient.post()
                                                             .body(Mono.just(authorityForm), Forms.ListOfStringsForm.class)
                                                             .retrieve()
                                                             .bodyToMono(String.class)
                                                             .flatMap(response -> {
                                                                 if (response.equals("ok")) {
-                                                                    return this.setAuthorizedSchedules(form, providerId)
+                                                                    return this.setAuthorizedSchedules(form, providerId, id, form.allSchedules)
                                                                             .flatMap(authorizedSchedules -> this.setAuthorizedRosters(form, providerId)
                                                                                     .flatMap(authorizedRosters -> this.setPersonalAuthorizedRosters(form.subdivisionId, id)
                                                                                             .flatMap(personalRosters -> {
@@ -252,7 +256,27 @@ public class EmployeeHelper {
                                                                                                         return this.saveTimeOffBalance(id, form.getTimeOffBalance())
                                                                                                                 .flatMap(balance -> {
                                                                                                                     employee.setTimeOffBalance(balance);
-                                                                                                                    return persistEmployee(form, providerId, employee, true);
+                                                                                                                    employee.setAuthorizedSchedules(authorizedSchedules);
+
+                                                                                                                    if (!form.email.equalsIgnoreCase(employee.getUsername())) {
+                                                                                                                        return this.isRegistered(form.email, id)
+                                                                                                                                .flatMap(registered -> {
+                                                                                                                                    if (registered) {
+                                                                                                                                        return this.setAuthorizedScheduleNames(employee, authorizedSchedules)
+                                                                                                                                                .flatMap(emp -> this.persistSubdivision(form, providerId, emp, true))
+                                                                                                                                                .flatMap(entity -> Mono.just(ResponseEntity.ok(new Forms.GenericResponse("existingUser"))));
+                                                                                                                                    } else {
+                                                                                                                                        employee.setUsername(form.email);
+                                                                                                                                        return this.setAuthorizedScheduleNames(employee, authorizedSchedules)
+                                                                                                                                                .flatMap(emp -> this.persistSubdivision(form, providerId, emp, true));
+                                                                                                                                    }
+                                                                                                                                });
+                                                                                                                    } else {
+                                                                                                                        return this.setAuthorizedScheduleNames(employee, authorizedSchedules)
+                                                                                                                                .flatMap(emp -> this.persistSubdivision(form, providerId, emp, true));
+                                                                                                                    }
+
+
                                                                                                                 });
 
                                                                                                     }
@@ -302,30 +326,45 @@ public class EmployeeHelper {
                                 )
                         )
                 );
-
-
-
-
     }
 
-    private Mono<? extends ResponseEntity> persistEmployee(Forms.NewEmployeeForm form, Long providerId, Employee employee, boolean edit) {
+    private Mono<? extends ResponseEntity> persistSubdivision(Forms.NewEmployeeForm form, Long providerId, Employee employee, boolean edit) {
         if (form.subdivisionId != null){
             return this.checkSubdivision(providerId, form.subdivisionId)
                     .flatMap(bool -> {
                         if (bool){
                             employee.setSubdivisionId(form.subdivisionId);
                         }
-                        return this.persistNewEmployee(employee, edit);
+                        if (edit) {
+                            return this.setSubdivision(form.subdivisionId, employee);
+                        } else {
+                            return this.persistEmployee(employee, false);
+                        }
                     });
         } else if (form.division!=null && form.subdivision !=null && form.division.length()>1 && form.subdivision.length()>1) {
             return this.findSubdivision(providerId, form.division, form.subdivision)
                     .flatMap(subdivisionId -> {
                         employee.setSubdivisionId(subdivisionId);
-                        return this.persistNewEmployee(employee, edit);
+                        if (edit) {
+                            return this.setSubdivision(subdivisionId, employee);
+                        } else {
+                            return this.persistEmployee(employee, false);
+                        }
                     });
         } else {
-            return this.persistNewEmployee(employee, edit);
+            return this.persistEmployee(employee, edit);
         }
+    }
+
+    private Mono<ResponseEntity> setSubdivision(long subdivisionId, Employee employee) {
+        return this.employeeService.getSubdivision(subdivisionId)
+                .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                        .flatMap(division -> {
+                            subdivision.setDivision(division);
+                            employee.setSubdivision(subdivision);
+
+                            return this.persistEmployee(employee, true);
+                        }));
     }
 
     private Mono<TimeOffBalance> saveTimeOffBalance(long employeeId, EmployeeEntity.TimeOffEntity timeOffBalance) {
@@ -404,35 +443,29 @@ public class EmployeeHelper {
 
     }
 
-    private Mono<ResponseEntity> persistNewEmployee(Employee emp, boolean edit) {
+    private Mono<ResponseEntity> persistEmployee(Employee emp, boolean edit) {
 
-
-        return this.employeeService.saveEmployee(emp)
-                .flatMap(e -> this.employeeService.getEmployeeByUsername(e.getProviderId(), e.getUsername()))
-                .flatMap(employee -> this.employeeService.saveTimeOff(emp.getTimeOffBalance()))
-                .flatMap(timeOff -> {
-                    List<AuthorizedSchedule> authorizedSchedules = new ArrayList<>();
-                    emp.getAuthorizedSchedules().forEach(authorizedSchedule -> authorizedSchedules.add(new AuthorizedSchedule(emp.getEmployeeId(), authorizedSchedule)));
-                    return this.employeeService.saveAuthorizedSchedules(authorizedSchedules)
-                            .flatMap(authorizedSchedList -> {
-                                List<AuthorizedRoster> authorizedRosters = new ArrayList<>();
-                                emp.getAuthorizedRosters().forEach(authorizedRoster -> authorizedRosters.add(new AuthorizedRoster(emp.getEmployeeId(), authorizedRoster)));
-                                Mono<ResponseEntity> entity;
-
-                                if (edit){
-                                    entity = this.buildEmployeeEntity(emp)
-                                            .flatMap(employeeEntity -> {
-                                                employeeEntity.getAuthorities();
-                                                return Mono.just(ResponseEntity.ok(employeeEntity));
-                                            });
-                                } else {
-                                    entity = this.buildShortEmployeeEntity(emp)
-                                            .flatMap(employeeEntity -> Mono.just(ResponseEntity.ok(employeeEntity)));
-                                }
-                                return this.employeeService.saveAuthorizedRosters(authorizedRosters)
-                                        .then(entity);
-                            });
-                });
+        if (edit) {
+            return this.employeeService.saveEmployee(emp)
+                    .then(this.buildEmployeeEntity(emp)
+                            .flatMap(employeeEntity -> Mono.just(ResponseEntity.ok(employeeEntity))));
+        } else {
+            return this.employeeService.saveEmployee(emp)
+                    .flatMap(e -> this.employeeService.getEmployeeByUsername(e.getProviderId(), e.getUsername()))
+                    .flatMap(employee -> this.employeeService.saveTimeOff(emp.getTimeOffBalance()))
+                    .flatMap(timeOff -> {
+                        List<AuthorizedSchedule> authorizedSchedules = new ArrayList<>();
+                        emp.getAuthorizedSchedules().forEach(authorizedSchedule -> authorizedSchedules.add(new AuthorizedSchedule(emp.getEmployeeId(), authorizedSchedule)));
+                        return this.employeeService.saveAuthorizedSchedules(authorizedSchedules)
+                                .flatMap(authorizedSchedList -> {
+                                    List<AuthorizedRoster> authorizedRosters = new ArrayList<>();
+                                    emp.getAuthorizedRosters().forEach(authorizedRoster -> authorizedRosters.add(new AuthorizedRoster(emp.getEmployeeId(), authorizedRoster)));
+                                    return this.employeeService.saveAuthorizedRosters(authorizedRosters)
+                                            .then(this.buildShortEmployeeEntity(emp)
+                                                    .flatMap(employeeEntity -> Mono.just(ResponseEntity.ok(employeeEntity))));
+                                });
+                    });
+        }
     }
 
     private Mono<List<Long>> setPersonalAuthorizedRosters (Long subDivisionId, long providerId) {
@@ -462,19 +495,19 @@ public class EmployeeHelper {
         }
     }
 
-    private Mono<Subdivision> loadSubdivision(Long subDivisionId, long providerId) {
-        return this.employeeService.getSubdivision(subDivisionId)
-                .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
-                        .flatMap(division -> {
-                                    if (division.getProviderId() == providerId) {
-                                        return Mono.just(subdivision);
-                                    } else {
-                                        return Mono.empty();
-                                    }
-                                }
-                        )
-                );
-    }
+//    private Mono<Subdivision> loadSubdivision(Long subDivisionId, long providerId) {
+//        return this.employeeService.getSubdivision(subDivisionId)
+//                .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+//                        .flatMap(division -> {
+//                                    if (division.getProviderId() == providerId) {
+//                                        return Mono.just(subdivision);
+//                                    } else {
+//                                        return Mono.empty();
+//                                    }
+//                                }
+//                        )
+//                );
+//    }
 
     private Mono<List<Long>> setAuthorizedRosters (Forms.NewEmployeeForm employeeForm, long providerId) {
         if (employeeForm.subdivisionIds!=null && employeeForm.subdivisionIds.size()>0){
@@ -497,29 +530,44 @@ public class EmployeeHelper {
 
     }
 
-    private Mono<List<Long>> setAuthorizedSchedules (Forms.NewEmployeeForm employeeForm, long providerId) {
-        if (employeeForm.availabilityIds!=null && employeeForm.availabilityIds.size()>0){
-
-            return Flux.fromIterable(employeeForm.availabilityIds)
-                    .flatMap(id -> {
-                        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.appointmentServiceUrl +
-                                "/schedule/get/" + id + "?providerId=" + providerId);
-                        return client.get()
-                                .retrieve()
-                                .bodyToMono(Long.class);
-
-                    })
-                    .collectList()
-                    .flatMap(list -> {
-                        list.size();
-                        return Mono.just(list)
-                                ;
-                    })
-                    .flatMap(list -> Mono.just(list.stream()
-                            .filter(id -> id>0)
-                            .collect(Collectors.toList())));
+    private Mono<List<Long>> setAuthorizedSchedules (Forms.NewEmployeeForm employeeForm, long providerId, Long employeeId, boolean deleteAll) {
+        if (deleteAll) {
+            return this.employeeService.getAuthorizedSchedules(employeeId)
+                    .flatMap(this.employeeService::deleteAuthorizedSchedules)
+                    .then(Mono.just(new ArrayList<>()));
         } else {
-            return Mono.just(new ArrayList<>());
+            if (employeeForm.availabilityIds != null && employeeForm.availabilityIds.size() > 0) {
+
+                return Flux.fromIterable(employeeForm.availabilityIds)
+                        .flatMap(id -> {
+                            var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.appointmentServiceUrl +
+                                    "/schedule/get/" + id + "?providerId=" + providerId);
+                            return client.get()
+                                    .retrieve()
+                                    .bodyToMono(Long.class);
+
+                        })
+                        .collectList()
+                        .flatMap(list -> {
+                            var authorizedSchedules = list.stream()
+                                    .filter(id -> id > 0)
+                                    .collect(Collectors.toList());
+
+                            if (employeeId != null) {
+                                List<AuthorizedSchedule> authorizedSchedulesToSave = new ArrayList<>();
+                                authorizedSchedules.forEach(authorizedSchedule -> authorizedSchedulesToSave.add(new AuthorizedSchedule(employeeId, authorizedSchedule)));
+                                return this.employeeService.getAuthorizedSchedules(employeeId)
+                                        .flatMap(this.employeeService::deleteAuthorizedSchedules)
+                                        .then(this.employeeService.saveAuthorizedSchedules(authorizedSchedulesToSave))
+                                        .then(Mono.just(authorizedSchedules));
+                            } else {
+                                return Mono.just(authorizedSchedules);
+                            }
+
+                        });
+            } else {
+                return Mono.just(new ArrayList<>());
+            }
         }
 
     }
@@ -642,44 +690,34 @@ public class EmployeeHelper {
 
     private Mono<EmployeeEntity> buildEmployeeEntity(Employee employee) {
 
+        List<Long> schedules = new ArrayList<>();
 
-
-        return this.loadEmployee(employee.getEmployeeId())
-                .flatMap(loadedEmployee -> {
-                    List<Long> schedules = new ArrayList<>();
-
-                    if (employee.getAuthorizedSchedules() != null) {
-                        schedules.addAll(employee.getAuthorizedSchedules());
-                    }
-
-
-
-                    return Mono.just(EmployeeEntity.builder()
-                            .id(loadedEmployee.getEmployeeId())
-                            .name(loadedEmployee.getName())
-                            .authorities(employee.getAuthorities())
-                            .authorizedSchedules(schedules)
-                            .authorizedScheduleNames(employee.getAuthorizedScheduleNames())
-                            .registerDate(loadedEmployee.getRegisterDate().toString())
-                            .username(loadedEmployee.getUsername())
-                            .avatar(loadedEmployee.getAvatar())
-                            .subdivision(employee.getSubdivision() != null ? employee.getSubdivision().getName() : null)
-                            .division(employee.getSubdivision() != null ? employee.getSubdivision().getDivision().getName() : null)
-                            .subdivisionId(employee.getSubdivision() != null ? employee.getSubdivision().getSubdivisionId() : null)
-                            .divisionId(employee.getSubdivision() != null && employee.getSubdivision().getDivision() != null ? employee.getSubdivision().getDivision().getDivisionId() : null)
-                            .jobTitle(loadedEmployee.getJobTitle())
-                            .authorizedRosters(loadedEmployee.getAuthorizedRosters())
-                            .timeOffBalance(employee.getTimeOffBalance() != null ? new EmployeeEntity.TimeOffEntity(employee.getTimeOffBalance()) : null)
-                            .homeAddress(loadedEmployee.getAddress())
-                            .phones(loadedEmployee.getPhones())
-                            .family(loadedEmployee.getFamily())
-                            .bankAccount(loadedEmployee.getBankAccount())
-                            .taxPayerId(loadedEmployee.getTaxPayerId())
-                            .personalEmail(loadedEmployee.getPersonalEmail())
-                            .build());
-                });
-
-
+        if (employee.getAuthorizedSchedules() != null) {
+            schedules.addAll(employee.getAuthorizedSchedules());
+        }
+        return  Mono.just(EmployeeEntity.builder()
+                .id(employee.getEmployeeId())
+                .name(employee.getName())
+                .authorities(employee.getAuthorities())
+                .authorizedSchedules(schedules)
+                .authorizedScheduleNames(employee.getAuthorizedScheduleNames())
+                .registerDate(employee.getRegisterDate().toString())
+                .username(employee.getUsername())
+                .avatar(employee.getAvatar())
+                .subdivision(employee.getSubdivision() != null ? employee.getSubdivision().getName() : null)
+                .division(employee.getSubdivision() != null ? employee.getSubdivision().getDivision().getName() : null)
+                .subdivisionId(employee.getSubdivisionId())
+                .divisionId(employee.getSubdivision() != null && employee.getSubdivision().getDivision() != null ? employee.getSubdivision().getDivision().getDivisionId() : null)
+                .jobTitle(employee.getJobTitle())
+                .authorizedRosters(employee.getAuthorizedRosters())
+                .timeOffBalance(employee.getTimeOffBalance() != null ? new EmployeeEntity.TimeOffEntity(employee.getTimeOffBalance()) : null)
+                .homeAddress(employee.getAddress())
+                .phones(employee.getPhones())
+                .family(employee.getFamily())
+                .bankAccount(employee.getBankAccount())
+                .taxPayerId(employee.getTaxPayerId())
+                .personalEmail(employee.getPersonalEmail())
+                .build());
 
 
     }
@@ -768,21 +806,9 @@ public class EmployeeHelper {
                             )
                             .flatMap(employee -> this.employeeService.getAuthorizedSchedules(employeeId)
                                     .flatMap(schedules -> {
-                                        employee.setAuthorizedSchedules(schedules.stream().map(AuthorizedSchedule::getId).collect(Collectors.toList()));
+                                        employee.setAuthorizedSchedules(schedules.stream().map(AuthorizedSchedule::getScheduleId).collect(Collectors.toList()));
                                         if (schedules.size()>0) {
-                                            List<String> ids = new ArrayList<>();
-                                            schedules.forEach(schedule -> ids.add(Long.toString(schedule.getScheduleId())));
-
-                                            var webclient = this.commonHelper.buildAPIAccessWebClient(commonHelper.appointmentServiceUrl + "/employee/schedules");
-                                            return webclient.post()
-                                                    .body(Mono.just(new Forms.ListOfStringsForm(ids)), Forms.ListOfStringsForm.class)
-                                                    .retrieve()
-                                                    .bodyToMono(String[].class)
-                                                    .flatMap(scheduleList -> {
-                                                        employee.setAuthorizedScheduleNames(Arrays.asList(scheduleList));
-                                                        return Mono.just(employee);
-                                                    });
-
+                                            return this.setAuthorizedScheduleNames(employee, schedules.stream().map(AuthorizedSchedule::getScheduleId).collect(Collectors.toList()));
                                         } else {
                                             return Mono.just(employee);
                                         }
@@ -811,6 +837,30 @@ public class EmployeeHelper {
 
     }
 
+    private Mono<Employee> setAuthorizedScheduleNames(Employee employee, List<Long> schedules) {
+        List<String> ids = new ArrayList<>();
+        schedules.forEach(schedule -> ids.add(Long.toString(schedule)));
 
+        var webclient = this.commonHelper.buildAPIAccessWebClient(commonHelper.appointmentServiceUrl + "/employee/schedules");
+        return webclient.post()
+                .body(Mono.just(new Forms.ListOfStringsForm(ids)), Forms.ListOfStringsForm.class)
+                .retrieve()
+                .bodyToMono(String[].class)
+                .flatMap(scheduleList -> {
+                    employee.setAuthorizedScheduleNames(Arrays.asList(scheduleList));
+                    return Mono.just(employee);
+                });
+    }
+
+    private Mono<Boolean> isRegistered(String username, long id) {
+
+        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/registered/" + id +"?username=" + username);
+
+        return client.get()
+                .retrieve()
+                .bodyToMono(Boolean.class);
+
+
+    }
 
 }
