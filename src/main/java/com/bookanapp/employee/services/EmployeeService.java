@@ -26,8 +26,8 @@ public class EmployeeService {
     private final TimeOffRequestRepository timeOffRequestRepository;
 
 
-    public Mono<Employee> getEmployee(long id) {
-        return this.employeeRepository.findById(id);
+    public Mono<Employee> getEmployee(long employeeId) {
+        return this.employeeRepository.getByEmployeeId(employeeId);
     }
     public Mono<Employee> getEmployeeByUsername(long providerId, String username) {
         return this.employeeRepository.getByProviderIdAndUsername(providerId, username);

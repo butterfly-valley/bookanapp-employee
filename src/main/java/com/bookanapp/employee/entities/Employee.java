@@ -23,8 +23,7 @@ public class Employee {
     @Column("id")
     @Id
     private long entityId;
-    @Column("employee_id")
-    private Long id;
+    private Long employeeId;
     private String username;
     private String name;
     private LocalDate registerDate;
@@ -52,6 +51,6 @@ public class Employee {
     @Transient
     private List<String> authorizedScheduleNames;
     @Transient
-    private List<Long> authorizedRosters;
+    private List<Long> authorizedRosters = new ArrayList<>();
 
 }

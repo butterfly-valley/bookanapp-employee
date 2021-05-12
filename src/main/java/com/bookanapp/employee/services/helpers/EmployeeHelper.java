@@ -32,7 +32,7 @@ public class EmployeeHelper {
                                         long loggedUserId = ((EmployeeDetails) currentUser).getId();
 
                                         return this.getEmployees(employeeId, subdivisionId, divisionId, providerId, employees.stream()
-                                                .filter(employee -> employee.getId() != loggedUserId)
+                                                .filter(employee -> employee.getEmployeeId() != loggedUserId)
                                                 .collect(Collectors.toList()))
                                                 .flatMap(filtered -> this.filteredEmployees(filtered, page, employeesPerPage));
 
@@ -55,7 +55,7 @@ public class EmployeeHelper {
 
 
                                 return filterEmployeeByName(employees.stream()
-                                        .filter(employee -> employee.getId() != loggedUserId)
+                                        .filter(employee -> employee.getEmployeeId() != loggedUserId)
                                         .collect(Collectors.toList()));
 
 
@@ -77,17 +77,17 @@ public class EmployeeHelper {
                                                 if (userDetails instanceof EmployeeDetails) {
                                                     long loggedUserId = ((EmployeeDetails) userDetails).getId();
 
-                                                    if (loggedUserId == employee.getId()) {
+                                                    if (loggedUserId == employee.getEmployeeId()) {
                                                         return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
                                                     } else {
-                                                        return this.loadEmployee(employee.getId())
+                                                        return this.loadEmployee(employee.getEmployeeId())
                                                                 .flatMap(this::buildEmployeeEntity)
                                                                 .flatMap(employeeEntity -> Mono.just(ResponseEntity.ok(employeeEntity)));
                                                     }
 
 
                                                 } else {
-                                                    return this.loadEmployee(employee.getId())
+                                                    return this.loadEmployee(employee.getEmployeeId())
                                                             .flatMap(this::buildEmployeeEntity)
                                                             .flatMap(employeeEntity -> Mono.just(ResponseEntity.ok(employeeEntity)));
                                                 }
@@ -167,7 +167,7 @@ public class EmployeeHelper {
 
                                                                                                     var timeOffBalance = new TimeOffBalance(employeeId, 0,0,0,0,0,0);
                                                                                                     var employee = Employee.builder()
-                                                                                                            .id(employeeId)
+                                                                                                            .employeeId(employeeId)
                                                                                                             .providerId(providerId)
                                                                                                             .name(form.name)
                                                                                                             .username(form.email)
@@ -179,23 +179,7 @@ public class EmployeeHelper {
                                                                                                             .authorities(authorities.stream().map(EmployeeAuthority::getAuthority).collect(Collectors.toList()))
                                                                                                             .build();
 
-                                                                                                    if (form.subdivisionId != null){
-                                                                                                        return this.checkSubdivision(providerId, form.subdivisionId)
-                                                                                                                .flatMap(bool -> {
-                                                                                                                    if (bool){
-                                                                                                                        employee.setSubdivisionId(form.subdivisionId);
-                                                                                                                    }
-                                                                                                                    return this.persistNewEmployee(employee);
-                                                                                                                });
-                                                                                                    } else if (form.division!=null && form.subdivision !=null && form.division.length()>1 && form.subdivision.length()>1) {
-                                                                                                        return this.findSubdivision(providerId, form.division, form.subdivision)
-                                                                                                                .flatMap(subdivisionId -> {
-                                                                                                                    employee.setSubdivisionId(subdivisionId);
-                                                                                                                    return this.persistNewEmployee(employee);
-                                                                                                                });
-                                                                                                    } else {
-                                                                                                        return this.persistNewEmployee(employee);
-                                                                                                    }
+                                                                                                    return persistEmployee(form, providerId, employee, false);
                                                                                                 }
                                                                                         )
                                                                                 )
@@ -206,10 +190,6 @@ public class EmployeeHelper {
                                                                             return this.deleteEmployeeDetails(form.email, providerId, employeeId)
                                                                                     .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("newUserError"))));
                                                                         });
-
-
-
-
 
                                                             });
 
@@ -230,65 +210,62 @@ public class EmployeeHelper {
                         .flatMap(employee -> {
 
                                     if (employee.getProviderId() == providerId) {
-
                                         var authClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/provider/authorities/" + providerId);
 
                                         return authClient.get()
                                                 .retrieve()
                                                 .bodyToMono(ProviderAuthority[].class)
                                                 .flatMap(providerAuthorityArray -> {
-                                                            var providerAuthorities = Arrays.asList(providerAuthorityArray);
+                                                    List<EmployeeAuthority> authorities = new ArrayList<>();
 
-                                                            return this.employeeService.getAllEmployees(providerId)
-                                                                    .flatMap(employees -> {
-                                                                        List<EmployeeAuthority> authorities = new ArrayList<>();
-
-                                                                        for (ProviderAuthority userAuthority : providerAuthorities) {
-                                                                            if (userAuthority.getAuthority().contains("ENTERPRISE"))
-                                                                                authorities.add(new EmployeeAuthority("ROLE_ENTERPRISE"));
-                                                                            if (userAuthority.getAuthority().contains("BUSINESS"))
-                                                                                authorities.add(new EmployeeAuthority("ROLE_BUSINESS"));
-                                                                            if (userAuthority.getAuthority().contains("ROLE_PRO"))
-                                                                                authorities.add(new EmployeeAuthority("ROLE_PRO"));
-                                                                        }
+                                                    for (ProviderAuthority userAuthority : providerAuthorityArray) {
+                                                        if (userAuthority.getAuthority().contains("ENTERPRISE"))
+                                                            authorities.add(new EmployeeAuthority("ROLE_ENTERPRISE"));
+                                                        if (userAuthority.getAuthority().contains("BUSINESS"))
+                                                            authorities.add(new EmployeeAuthority("ROLE_BUSINESS"));
+                                                        if (userAuthority.getAuthority().contains("ROLE_PRO"))
+                                                            authorities.add(new EmployeeAuthority("ROLE_PRO"));
+                                                    }
 
 
-                                                                        form.authorizations.forEach(auth -> authorities.add(new EmployeeAuthority(auth)));
-                                                                        authorities.add(new EmployeeAuthority("SUBPROVIDER_ROSTER_VIEW"));
+                                                    form.authorizations.forEach(auth -> authorities.add(new EmployeeAuthority(auth)));
+                                                    authorities.add(new EmployeeAuthority("SUBPROVIDER_ROSTER_VIEW"));
 
-                                                                        List<String> auths = new ArrayList<>();
-                                                                        authorities.forEach(auth -> auths.add(auth.getAuthority()));
+                                                    List<String> auths = new ArrayList<>();
+                                                    authorities.forEach(auth -> auths.add(auth.getAuthority()));
 
-                                                                        var authorityForm = new Forms.ListOfStringsForm(auths);
+                                                    var authorityForm = new Forms.ListOfStringsForm(auths);
 
-                                                                        var updateAuthoritiesClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/authorities/update/" + id);
+                                                    var updateAuthoritiesClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/authorities/update/" + id);
 
-                                                                        return updateAuthoritiesClient.post()
-                                                                                .body(Mono.just(authorityForm), Forms.ListOfStringsForm.class)
-                                                                                .retrieve()
-                                                                                .bodyToMono(String.class)
-                                                                                .flatMap(response -> {
-                                                                                    if (response.equals("ok")) {
-                                                                                        return this.setAuthorizedSchedules(form, providerId)
-                                                                                                .flatMap(authorizedSchedules -> this.setAuthorizedRosters(form, providerId)
-                                                                                                        .flatMap(authorizedRosters -> this.setPersonalAuthorizedRosters(form.subdivisionId, id)
-                                                                                                                .flatMap(personalRosters -> {
-                                                                                                                            authorizedRosters.addAll(personalRosters);
-                                                                                                                            return this.persistNewEmployee(employee);
-                                                                                                                        }
-                                                                                                                )
-                                                                                                        )
-                                                                                                );
+                                                    return updateAuthoritiesClient.post()
+                                                            .body(Mono.just(authorityForm), Forms.ListOfStringsForm.class)
+                                                            .retrieve()
+                                                            .bodyToMono(String.class)
+                                                            .flatMap(response -> {
+                                                                if (response.equals("ok")) {
+                                                                    return this.setAuthorizedSchedules(form, providerId)
+                                                                            .flatMap(authorizedSchedules -> this.setAuthorizedRosters(form, providerId)
+                                                                                    .flatMap(authorizedRosters -> this.setPersonalAuthorizedRosters(form.subdivisionId, id)
+                                                                                            .flatMap(personalRosters -> {
+                                                                                                        authorizedRosters.addAll(personalRosters);
+                                                                                                        return this.saveTimeOffBalance(id, form.getTimeOffBalance())
+                                                                                                                .flatMap(balance -> {
+                                                                                                                    employee.setTimeOffBalance(balance);
+                                                                                                                    return persistEmployee(form, providerId, employee, true);
+                                                                                                                });
 
-                                                                                    } else {
-                                                                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("editError")));
-                                                                                    }
-                                                                                });
+                                                                                                    }
+                                                                                            )
+                                                                                    )
+                                                                            );
 
-                                                                    });
+                                                                } else {
+                                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("editError")));
+                                                                }
+                                                            });
+                                                });
 
-                                                        }
-                                                );
                                     } else {
                                         return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
                                     }
@@ -297,6 +274,7 @@ public class EmployeeHelper {
                         )
                 );
     }
+
 
 
     public Mono<ResponseEntity> getListOfTimeRequests(long id){
@@ -309,13 +287,13 @@ public class EmployeeHelper {
                                                 if (userDetails instanceof EmployeeDetails) {
                                                     long loggedUserId = ((EmployeeDetails) userDetails).getId();
 
-                                                    if (loggedUserId == employee.getId()) {
+                                                    if (loggedUserId == employee.getEmployeeId()) {
                                                         return Mono.just(ResponseEntity.ok(new ArrayList<>()));
                                                     } else {
-                                                        return this.getTimeOff(employee.getId());
+                                                        return this.getTimeOff(employee.getEmployeeId());
                                                     }
                                                 } else {
-                                                    return this.getTimeOff(employee.getId());
+                                                    return this.getTimeOff(employee.getEmployeeId());
                                                 }
                                             } else {
                                                 return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
@@ -328,6 +306,47 @@ public class EmployeeHelper {
 
 
 
+    }
+
+    private Mono<? extends ResponseEntity> persistEmployee(Forms.NewEmployeeForm form, Long providerId, Employee employee, boolean edit) {
+        if (form.subdivisionId != null){
+            return this.checkSubdivision(providerId, form.subdivisionId)
+                    .flatMap(bool -> {
+                        if (bool){
+                            employee.setSubdivisionId(form.subdivisionId);
+                        }
+                        return this.persistNewEmployee(employee, edit);
+                    });
+        } else if (form.division!=null && form.subdivision !=null && form.division.length()>1 && form.subdivision.length()>1) {
+            return this.findSubdivision(providerId, form.division, form.subdivision)
+                    .flatMap(subdivisionId -> {
+                        employee.setSubdivisionId(subdivisionId);
+                        return this.persistNewEmployee(employee, edit);
+                    });
+        } else {
+            return this.persistNewEmployee(employee, edit);
+        }
+    }
+
+    private Mono<TimeOffBalance> saveTimeOffBalance(long employeeId, EmployeeEntity.TimeOffEntity timeOffBalance) {
+        TimeOffBalance balance = new TimeOffBalance(employeeId, 0,0,0,0,0,0);
+        Mono<TimeOffBalance> newBalance = this.employeeService.saveTimeOff(balance);
+
+        return this.employeeService.getTimeOff(employeeId)
+                .switchIfEmpty(Mono.defer(() -> newBalance))
+                .flatMap(timeOff -> {
+                    if (timeOffBalance != null) {
+                        timeOff.setVacationDays(timeOffBalance.getVacationDays());
+                        timeOff.setVacationRolloverDays(timeOffBalance.getVacationRolloverDays());
+                        timeOff.setComplimentaryBankHolidayDays(timeOffBalance.getComplimentaryBankHolidayDays());
+                        timeOff.setComplimentaryBankHolidayRolloverDays(timeOffBalance.getComplimentaryBankHolidayRolloverDays());
+                        timeOff.setCompensationDays(timeOffBalance.getCompensationDays());
+                        timeOff.setCompensationRolloverDays(timeOffBalance.getCompensationRolloverDays());
+                        return this.employeeService.saveTimeOff(timeOff);
+                    } else {
+                        return Mono.just(timeOff);
+                    }
+                });
     }
 
     private Mono<Boolean> checkSubdivision(long providerId, long subdivisionId) {
@@ -373,7 +392,7 @@ public class EmployeeHelper {
                 .flatMap(response -> this.employeeService.getEmployeeByUsername(providerId, username)
                         .switchIfEmpty(Mono.just(new Employee()))
                         .flatMap(employee -> {
-                            if (employee.getId() != null) {
+                            if (employee.getEmployeeId() != null) {
                                 return this.employeeService.deleteEmployee(employee)
                                         .then(Mono.just("ok"));
                             } else {
@@ -385,19 +404,33 @@ public class EmployeeHelper {
 
     }
 
-    private Mono<ResponseEntity> persistNewEmployee(Employee emp) {
+    private Mono<ResponseEntity> persistNewEmployee(Employee emp, boolean edit) {
+
+
         return this.employeeService.saveEmployee(emp)
                 .flatMap(e -> this.employeeService.getEmployeeByUsername(e.getProviderId(), e.getUsername()))
                 .flatMap(employee -> this.employeeService.saveTimeOff(emp.getTimeOffBalance()))
                 .flatMap(timeOff -> {
                     List<AuthorizedSchedule> authorizedSchedules = new ArrayList<>();
-                    emp.getAuthorizedSchedules().forEach(authorizedSchedule -> authorizedSchedules.add(new AuthorizedSchedule(emp.getId(), authorizedSchedule)));
+                    emp.getAuthorizedSchedules().forEach(authorizedSchedule -> authorizedSchedules.add(new AuthorizedSchedule(emp.getEmployeeId(), authorizedSchedule)));
                     return this.employeeService.saveAuthorizedSchedules(authorizedSchedules)
                             .flatMap(authorizedSchedList -> {
                                 List<AuthorizedRoster> authorizedRosters = new ArrayList<>();
-                                emp.getAuthorizedRosters().forEach(authorizedRoster -> authorizedRosters.add(new AuthorizedRoster(emp.getId(), authorizedRoster)));
+                                emp.getAuthorizedRosters().forEach(authorizedRoster -> authorizedRosters.add(new AuthorizedRoster(emp.getEmployeeId(), authorizedRoster)));
+                                Mono<ResponseEntity> entity;
+
+                                if (edit){
+                                    entity = this.buildEmployeeEntity(emp)
+                                            .flatMap(employeeEntity -> {
+                                                employeeEntity.getAuthorities();
+                                                return Mono.just(ResponseEntity.ok(employeeEntity));
+                                            });
+                                } else {
+                                    entity = this.buildShortEmployeeEntity(emp)
+                                            .flatMap(employeeEntity -> Mono.just(ResponseEntity.ok(employeeEntity)));
+                                }
                                 return this.employeeService.saveAuthorizedRosters(authorizedRosters)
-                                        .then(Mono.just(ResponseEntity.ok(this.buildShortEmployeeEntity(emp))));
+                                        .then(entity);
                             });
                 });
     }
@@ -477,6 +510,11 @@ public class EmployeeHelper {
 
                     })
                     .collectList()
+                    .flatMap(list -> {
+                        list.size();
+                        return Mono.just(list)
+                                ;
+                    })
                     .flatMap(list -> Mono.just(list.stream()
                             .filter(id -> id>0)
                             .collect(Collectors.toList())));
@@ -556,7 +594,7 @@ public class EmployeeHelper {
     private Mono<List<Employee>> getEmployees(String employeeId, String subdivisionId, String divisionId, long providerId, List<Employee> employees) {
         if (employeeId != null) {
             employees = employees.stream()
-                    .filter(employee ->  employee.getId() == Long.parseLong(employeeId))
+                    .filter(employee ->  employee.getEmployeeId() == Long.parseLong(employeeId))
                     .sorted(Comparator.comparing(Employee::getName,
                             Comparator.comparing(String::toLowerCase)))
                     .collect(Collectors.toList());
@@ -606,7 +644,7 @@ public class EmployeeHelper {
 
 
 
-        return this.loadEmployee(employee.getId())
+        return this.loadEmployee(employee.getEmployeeId())
                 .flatMap(loadedEmployee -> {
                     List<Long> schedules = new ArrayList<>();
 
@@ -617,7 +655,7 @@ public class EmployeeHelper {
 
 
                     return Mono.just(EmployeeEntity.builder()
-                            .id(loadedEmployee.getId())
+                            .id(loadedEmployee.getEmployeeId())
                             .name(loadedEmployee.getName())
                             .authorities(employee.getAuthorities())
                             .authorizedSchedules(schedules)
@@ -652,7 +690,7 @@ public class EmployeeHelper {
             return this.employeeService.getSubdivision(employee.getSubdivisionId())
                     .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
                             .flatMap(division -> Mono.just(EmployeeEntity.builder()
-                                    .id(employee.getId())
+                                    .id(employee.getEmployeeId())
                                     .name(employee.getName())
                                     .avatar(employee.getAvatar())
                                     .subdivision(subdivision.getName())
@@ -664,7 +702,7 @@ public class EmployeeHelper {
                     );
         } else {
             return Mono.just(EmployeeEntity.builder()
-                    .id(employee.getId())
+                    .id(employee.getEmployeeId())
                     .name(employee.getName())
                     .avatar(employee.getAvatar())
                     .jobTitle(employee.getJobTitle())

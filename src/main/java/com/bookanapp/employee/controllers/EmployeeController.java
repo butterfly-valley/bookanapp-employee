@@ -79,8 +79,24 @@ public class EmployeeController {
                           log.error("Error registering new employee, error: " + e.getMessage());
                           return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("newUserError")));
                       }
-                  })
-;
+                  });
+
+    }
+
+    @PostMapping("/edit/{id}")
+    @PreAuthorize( "hasAuthority('PROVIDER')" +
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+    public Mono<? extends ResponseEntity> editEmployee(@PathVariable("id") long id, @RequestBody @Valid Mono<Forms.NewEmployeeForm> employeeFormMono) {
+        return employeeFormMono
+                .flatMap(form -> this.employeeHelper.editEmployee(id, form));
+//                .onErrorResume(e -> {
+//                    if (e instanceof WebExchangeBindException) {
+//                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+//                    } else {
+//                        log.error("Error editing employee, error: " + e.getMessage());
+//                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("editError")));
+//                    }
+//                });
 
     }
 

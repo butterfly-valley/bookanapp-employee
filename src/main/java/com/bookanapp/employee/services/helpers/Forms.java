@@ -34,7 +34,7 @@ public class Forms {
     @Data
     @AllArgsConstructor
     public static class ListOfStringsForm {
-        List<String> idsToDelete;
+        List<String> strings;
 
     }
 
