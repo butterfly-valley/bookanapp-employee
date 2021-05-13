@@ -340,7 +340,7 @@ public class EmployeeHelper {
                                             .bodyToMono(String.class)
                                             .flatMap(response ->  this.deleteEmployeeDetails(employee));
                                 } else {
-                                   return this.deleteEmployeeDetails(employee);
+                                    return this.deleteEmployeeDetails(employee);
                                 }
                             } else {
                                 return Mono.just("invalidEmployee");
@@ -358,6 +358,19 @@ public class EmployeeHelper {
 
     }
 
+    public Mono<ResponseEntity> showSchedules() {
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> {
+                    var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.appointmentServiceUrl + "/employee/schedules/show/" + providerId);
+                    return client.get()
+                            .retrieve()
+                            .bodyToMono(ScheduleEntity[].class)
+                            .flatMap(response -> Mono.just(ResponseEntity.ok(Arrays.asList(response))));
+                });
+
+    }
+
+
 
     private Mono<String> deleteEmployeeDetails(Employee employee) {
         var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/delete/" + employee.getEmployeeId());
@@ -366,7 +379,7 @@ public class EmployeeHelper {
                 .bodyToMono(String.class)
                 .flatMap(response -> {
                     if (response.equals("ok")) {
-                       return this.employeeService.deleteEmployee(employee)
+                        return this.employeeService.deleteEmployee(employee)
                                 .then(Mono.just("ok"));
                     } else {
                         return Mono.error(new RuntimeException("Error deleting employee details from auth service"));

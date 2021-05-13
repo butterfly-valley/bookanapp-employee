@@ -111,4 +111,17 @@ public class EmployeeController {
 
     }
 
+    @GetMapping(value="/get/schedules")
+    @PreAuthorize( "hasAuthority('PROVIDER')" +
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+    public Mono<? extends ResponseEntity> showSchedules() {
+
+        return this.employeeHelper.showSchedules()
+                .onErrorResume(e -> {
+                    log.error("Error showing schedules, error: " + e.getMessage());
+                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                });
+
+    }
+
 }
