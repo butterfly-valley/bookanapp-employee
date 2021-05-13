@@ -7,10 +7,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.support.PagedListHolder;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.support.WebExchangeBindException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import javax.validation.Valid;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -327,6 +333,45 @@ public class EmployeeHelper {
                         )
                 );
     }
+
+
+    public Mono<ResponseEntity> deleteEmployee(@Valid @RequestBody Forms.DeleteForm deleteForm){
+
+
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> Flux.fromIterable(deleteForm.idsToDelete)
+                        .flatMap(id -> this.employeeService.getEmployee(Long.parseLong(id)))
+                        .flatMap(employee -> {
+                            if (employee.getProviderId() == providerId) {
+                                if (employee.getAvatar() != null) {
+                                    String[] splitLink=employee.getAvatar().split("avatar/");
+                                    var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl
+                                            + "/upload/delete?=bucket=bookanapp-provider-employees&link=" + "employee-id-" + employee.getEmployeeId() + "/avatar/"+splitLink[1]);
+                                    return client.get()
+                                            .retrieve()
+                                            .bodyToMono(String.class)
+                                            .flatMap(response ->  this.employeeService.deleteEmployee(employee)
+                                                    .then(Mono.just("ok")));
+                                } else {
+                                   return this.employeeService.deleteEmployee(employee)
+                                            .then(Mono.just("ok"));
+                                }
+                            } else {
+                                return Mono.just("invalidEmployee");
+
+                            }
+                        })
+                        .collectList()
+                        .flatMap(list -> {
+                            if (list.contains("invalidEmployee")) {
+                                return Mono.just(ResponseEntity.ok("invalidEmployee"));
+                            } else {
+                                return Mono.just(ResponseEntity.ok("deleteEmployeeSuccess"));
+                            }
+                        }));
+
+    }
+
 
     private Mono<? extends ResponseEntity> persistSubdivision(Forms.NewEmployeeForm form, Long providerId, Employee employee, boolean edit) {
         if (form.subdivisionId != null){
@@ -862,5 +907,7 @@ public class EmployeeHelper {
 
 
     }
+
+
 
 }

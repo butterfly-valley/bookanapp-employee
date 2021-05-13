@@ -3,6 +3,7 @@ package com.bookanapp.employee.services.helpers;
 import com.bookanapp.employee.entities.rest.EmployeeAuthority;
 import com.bookanapp.employee.entities.rest.EmployeeEntity;
 import com.bookanapp.employee.validation.Authorities;
+import com.bookanapp.employee.validation.IdToDelete;
 import com.bookanapp.employee.validation.Password;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -35,6 +36,12 @@ public class Forms {
     @AllArgsConstructor
     public static class ListOfStringsForm {
         List<String> strings;
+    }
+
+    @Data
+    public static class DeleteForm {
+        @IdToDelete
+        List<String> idsToDelete;
 
     }
 

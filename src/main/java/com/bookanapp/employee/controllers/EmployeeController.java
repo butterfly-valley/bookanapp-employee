@@ -1,6 +1,7 @@
 package com.bookanapp.employee.controllers;
 
 
+import com.bookanapp.employee.services.helpers.CommonHelper;
 import com.bookanapp.employee.services.helpers.EmployeeHelper;
 import com.bookanapp.employee.services.helpers.Forms;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import javax.validation.Valid;
 public class EmployeeController {
 
     private final EmployeeHelper employeeHelper;
+    private final CommonHelper commonHelper;
 
     @GetMapping("/get")
     @PreAuthorize( "hasAuthority('PROVIDER')" +
@@ -72,14 +74,7 @@ public class EmployeeController {
     public Mono<? extends ResponseEntity> addNewEmployee(@RequestBody @Valid Mono<Forms.NewEmployeeForm> employeeFormMono) {
           return employeeFormMono
                   .flatMap(this.employeeHelper::createNewEmployee)
-                  .onErrorResume(e -> {
-                      if (e instanceof WebExchangeBindException) {
-                          return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
-                      } else {
-                          log.error("Error registering new employee, error: " + e.getMessage());
-                          return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("newUserError")));
-                      }
-                  });
+                  .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error registering new employee, error: ", "newUserError"));
 
     }
 
@@ -88,15 +83,18 @@ public class EmployeeController {
             " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
     public Mono<? extends ResponseEntity> editEmployee(@PathVariable("id") long id, @RequestBody @Valid Mono<Forms.NewEmployeeForm> employeeFormMono) {
         return employeeFormMono
-                .flatMap(form -> this.employeeHelper.editEmployee(id, form));
-//                .onErrorResume(e -> {
-//                    if (e instanceof WebExchangeBindException) {
-//                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
-//                    } else {
-//                        log.error("Error editing employee, error: " + e.getMessage());
-//                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("editError")));
-//                    }
-//                });
+                .flatMap(form -> this.employeeHelper.editEmployee(id, form))
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error editing employee, error: ", "editError"));
+
+    }
+
+    @PostMapping("/delete")
+    @PreAuthorize( "hasAuthority('PROVIDER')" +
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+    public Mono<? extends ResponseEntity> deleteCustomer(@RequestBody @Valid Mono<Forms.DeleteForm> employeeFormMono) {
+        return employeeFormMono
+                .flatMap(this.employeeHelper::deleteEmployee)
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error deleting employee, error: ", "deleteEmployeeError"));
 
     }
 
