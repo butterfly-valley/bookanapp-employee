@@ -370,6 +370,54 @@ public class EmployeeHelper {
 
     }
 
+    public Mono<ResponseEntity> deleteAvatar(long id) {
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> this.employeeService.getEmployee(id)
+                        .flatMap(employee -> {
+                            if (employee.getProviderId() == providerId) {
+                                if (employee.getAvatar() != null) {
+                                    String[] splitLink=employee.getAvatar().split("avatar/");
+                                    var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl
+                                            + "/upload/delete?=bucket=bookanapp-provider-employees&link=" + "employee-id-" + employee.getEmployeeId() + "/avatar/"+splitLink[1]);
+                                    return client.get()
+                                            .retrieve()
+                                            .bodyToMono(String.class)
+                                            .flatMap(response ->  Mono.just(ResponseEntity.ok("avatarDeleteSuccess")));
+                                } else {
+                                    return Mono.just(ResponseEntity.ok("avatarDeleteSuccess"));
+                                }
+
+                            } else {
+                                return Mono.just(ResponseEntity.ok("invalidEmployee"));
+                            }
+                        }));
+    }
+
+    public Mono<ResponseEntity> updateDivision(Forms.DivisionForm form) {
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> this.employeeService.getDivision(form.divisionId)
+                        .flatMap(division -> {
+                            if (division.getProviderId() == providerId) {
+                                return this.employeeService.getSubdivision(form.subdivisionId)
+                                        .flatMap(subdivision -> {
+                                            if (subdivision.getDivisionId() == division.getDivisionId()) {
+                                                division.setName(form.divisionName);
+                                                subdivision.setName(form.subdivisionName);
+                                                return this.employeeService.saveDivision(division)
+                                                        .then(this.employeeService.saveSubdivision(subdivision))
+                                                        .then(Mono.just(ResponseEntity.ok("success")));
+                                            } else {
+                                                return Mono.just(ResponseEntity.ok("invalid-division"));
+                                            }
+                                        });
+                            } else {
+                                return Mono.just(ResponseEntity.ok("invalid-division"));
+                            }
+                        })
+                );
+    }
+
+
 
 
     private Mono<String> deleteEmployeeDetails(Employee employee) {

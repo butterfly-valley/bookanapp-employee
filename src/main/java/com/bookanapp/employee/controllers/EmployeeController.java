@@ -124,4 +124,20 @@ public class EmployeeController {
 
     }
 
+    @GetMapping(value="/delete/image/{id}")
+    @PreAuthorize( "hasAuthority('PROVIDER')" +
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+    public Mono<? extends ResponseEntity> deleteAvatar(@PathVariable("id") long id) {
+
+        return this.employeeHelper.deleteAvatar(id)
+                .onErrorResume(e -> {
+                    log.error("Error showing schedules, error: " + e.getMessage());
+                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                });
+
+    }
+
+
+
+
 }

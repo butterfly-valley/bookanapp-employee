@@ -80,4 +80,17 @@ public class Forms {
         long providerId;
         List<EmployeeAuthority> authorities;
     }
+
+    @Data
+    public static class DivisionForm {
+        @NotBlank
+        String divisionName;
+        @NotBlank
+        String subdivisionName;
+        @NotNull
+        Long divisionId;
+        @NotNull
+        Long subdivisionId;
+    }
+
 }
