@@ -90,8 +90,6 @@ public class EmployeeHelper {
                                                                 .flatMap(this::buildEmployeeEntity)
                                                                 .flatMap(employeeEntity -> Mono.just(ResponseEntity.ok(employeeEntity)));
                                                     }
-
-
                                                 } else {
                                                     return this.loadEmployee(employee.getEmployeeId())
                                                             .flatMap(this::buildEmployeeEntity)
@@ -196,13 +194,9 @@ public class EmployeeHelper {
                                                                             return this.deleteEmployeeDetails(form.email, providerId, employeeId)
                                                                                     .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("newUserError"))));
                                                                         });
-
                                                             });
 
-
                                                 });
-
-
                                     }
                             );
 
@@ -232,7 +226,6 @@ public class EmployeeHelper {
                                                         if (userAuthority.getAuthority().contains("ROLE_PRO"))
                                                             authorities.add(new EmployeeAuthority("ROLE_PRO"));
                                                     }
-
 
                                                     form.authorizations.forEach(auth -> authorities.add(new EmployeeAuthority(auth)));
                                                     authorities.add(new EmployeeAuthority("SUBPROVIDER_ROSTER_VIEW"));
@@ -281,15 +274,11 @@ public class EmployeeHelper {
                                                                                                                         return this.setAuthorizedScheduleNames(employee, authorizedSchedules)
                                                                                                                                 .flatMap(emp -> this.persistSubdivision(form, providerId, emp, true));
                                                                                                                     }
-
-
                                                                                                                 });
-
                                                                                                     }
                                                                                             )
                                                                                     )
                                                                             );
-
                                                                 } else {
                                                                     return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("editError")));
                                                                 }
@@ -299,7 +288,6 @@ public class EmployeeHelper {
                                     } else {
                                         return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
                                     }
-
                                 }
                         )
                 );
@@ -350,11 +338,9 @@ public class EmployeeHelper {
                                     return client.get()
                                             .retrieve()
                                             .bodyToMono(String.class)
-                                            .flatMap(response ->  this.employeeService.deleteEmployee(employee)
-                                                    .then(Mono.just("ok")));
+                                            .flatMap(response ->  this.deleteEmployeeDetails(employee));
                                 } else {
-                                   return this.employeeService.deleteEmployee(employee)
-                                            .then(Mono.just("ok"));
+                                   return this.deleteEmployeeDetails(employee);
                                 }
                             } else {
                                 return Mono.just("invalidEmployee");
@@ -372,6 +358,21 @@ public class EmployeeHelper {
 
     }
 
+
+    private Mono<String> deleteEmployeeDetails(Employee employee) {
+        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/delete/" + employee.getEmployeeId());
+        return client.get()
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(response -> {
+                    if (response.equals("ok")) {
+                       return this.employeeService.deleteEmployee(employee)
+                                .then(Mono.just("ok"));
+                    } else {
+                        return Mono.error(new RuntimeException("Error deleting employee details from auth service"));
+                    }
+                });
+    }
 
     private Mono<? extends ResponseEntity> persistSubdivision(Forms.NewEmployeeForm form, Long providerId, Employee employee, boolean edit) {
         if (form.subdivisionId != null){
