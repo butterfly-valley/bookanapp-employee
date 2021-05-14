@@ -7,7 +7,9 @@ import com.bookanapp.employee.entities.TimeOffBalance;
 import lombok.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @AllArgsConstructor
@@ -18,7 +20,7 @@ public class EmployeeEntity {
     private String username;
     private String name;
     private String registerDate;
-    private List<String> authorities = new ArrayList<>();
+    private Set<String> authorities = new HashSet<>();
     private List<Long> authorizedSchedules=new ArrayList<>();
     private List<Long> authorizedRosters=new ArrayList<>();
     private List<String> authorizedScheduleNames=new ArrayList<>();

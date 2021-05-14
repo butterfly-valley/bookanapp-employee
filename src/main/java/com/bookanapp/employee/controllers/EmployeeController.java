@@ -62,11 +62,11 @@ public class EmployeeController {
             " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
     public Mono<? extends ResponseEntity> showEmployee(@PathVariable("id") long id) {
 
-        return this.employeeHelper.showEmployee(id)
-                .onErrorResume(e -> {
-                    log.error("Error returning employee info, error: " + e.getMessage());
-                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
-                });
+        return this.employeeHelper.showEmployee(id);
+//                .onErrorResume(e -> {
+//                    log.error("Error returning employee info, error: " + e.getMessage());
+//                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+//                });
 
     }
 

@@ -16,6 +16,7 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.util.List;
+import java.util.Set;
 
 
 public class Forms {
@@ -34,8 +35,8 @@ public class Forms {
 
     @Data
     @AllArgsConstructor
-    public static class ListOfStringsForm {
-        List<String> strings;
+    public static class SetOfStringsForm {
+        Set<String> strings;
     }
 
     @Data

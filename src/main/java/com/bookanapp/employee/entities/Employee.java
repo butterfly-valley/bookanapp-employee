@@ -12,6 +12,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @AllArgsConstructor
@@ -47,7 +48,7 @@ public class Employee {
     @Transient
     private Subdivision subdivision;
     @Transient
-    private List<String> authorities;
+    private Set<String> authorities;
     @Transient
     private List<String> authorizedScheduleNames = new ArrayList<>();
     @Transient
