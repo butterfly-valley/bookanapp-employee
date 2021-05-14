@@ -7,7 +7,9 @@ import com.bookanapp.employee.services.helpers.Forms;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.support.WebExchangeBindException;
@@ -147,14 +149,23 @@ public class EmployeeController {
 
     }
 
+    @PostMapping(value = "/upload/image/{id}", produces="application/json", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<ResponseEntity> uploadAvatar(@PathVariable("id") long id, @RequestPart("fileKey") Mono<FilePart> file) {
+        return this.employeeHelper.uploadPhoto(id, file)
+                .onErrorResume(e -> {
+                    log.error("Error saving image for employeeId: " + id + ", error: " + e.getMessage());
+                    return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(null, "imageUploadError")));
+                });
+    }
+
     @GetMapping(value="/delete/image/{id}")
     @PreAuthorize( "hasAuthority('PROVIDER')" +
             " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
     public Mono<? extends ResponseEntity> deleteAvatar(@PathVariable("id") long id) {
 
-        return this.employeeHelper.deleteAvatar(id)
+        return this.employeeHelper.deleteAvatar(id, true)
                 .onErrorResume(e -> {
-                    log.error("Error showing schedules, error: " + e.getMessage());
+                    log.error("Error deleting employee avatar, error: " + e.getMessage());
                     return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
                 });
 

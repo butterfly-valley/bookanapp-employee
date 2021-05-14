@@ -93,4 +93,12 @@ public class Forms {
         Long subdivisionId;
     }
 
+    @Data
+    @AllArgsConstructor
+    public static class FileUploadResponse {
+        private String link;
+        private String error;
+
+    }
+
 }

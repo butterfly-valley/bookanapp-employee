@@ -6,13 +6,19 @@ import com.bookanapp.employee.services.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.support.PagedListHolder;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.reactive.function.BodyInserters;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -370,7 +376,7 @@ public class EmployeeHelper {
 
     }
 
-    public Mono<ResponseEntity> deleteAvatar(long id) {
+    public Mono<ResponseEntity> deleteAvatar(long id, boolean deleteEmployeeAvatar) {
         return this.commonHelper.getCurrentProviderId()
                 .flatMap(providerId -> this.employeeService.getEmployee(id)
                         .flatMap(employee -> {
@@ -378,13 +384,28 @@ public class EmployeeHelper {
                                 if (employee.getAvatar() != null) {
                                     String[] splitLink=employee.getAvatar().split("avatar/");
                                     var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl
-                                            + "/upload/delete?=bucket=bookanapp-provider-employees&link=" + "employee-id-" + employee.getEmployeeId() + "/avatar/"+splitLink[1]);
+                                            + "/upload/delete?=bucket=bookanapp-provider-employees&link="+"provider-id-" + providerId  + "employee-id-" + employee.getEmployeeId() + "/avatar/"+splitLink[1]);
                                     return client.get()
                                             .retrieve()
                                             .bodyToMono(String.class)
-                                            .flatMap(response ->  Mono.just(ResponseEntity.ok("avatarDeleteSuccess")));
+                                            .flatMap(response -> {
+                                                if (deleteEmployeeAvatar) {
+                                                    employee.setAvatar(null);
+                                                     return this.employeeService.saveEmployee(employee)
+                                                             .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("avatarDeleteSuccess"))));
+                                                } else {
+                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("avatarDeleteSuccess")));
+                                                }
+
+                                            });
                                 } else {
-                                    return Mono.just(ResponseEntity.ok("avatarDeleteSuccess"));
+                                    if (deleteEmployeeAvatar) {
+                                        employee.setAvatar(null);
+                                        return this.employeeService.saveEmployee(employee)
+                                                .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("avatarDeleteSuccess"))));
+                                    } else {
+                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("avatarDeleteSuccess")));
+                                    }
                                 }
 
                             } else {
@@ -435,6 +456,65 @@ public class EmployeeHelper {
                     return Mono.just(ResponseEntity.ok(entities));
                 });
 
+
+    }
+
+    public Mono<ResponseEntity> uploadPhoto(long employeeId, Mono<FilePart> file) {
+
+
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> this.employeeService.getEmployee(employeeId)
+                        .flatMap(employee -> {
+                            if (employee.getProviderId() == providerId) {
+
+                                return file
+                                        .flatMap(filePart -> {
+                                            MultipartBodyBuilder builder = new MultipartBodyBuilder();
+                                            builder.part("file", filePart)
+                                                    .header("content-type", Objects.requireNonNull(filePart.headers().getContentType()).toString());
+
+                                            var uploadClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl +
+                                                    "/upload/image/?employeeId=" + employeeId + "&providerId=" + providerId);
+
+                                            return uploadClient
+                                                    .post()
+                                                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                                                    .body(BodyInserters.fromMultipartData(builder.build()))
+                                                    .retrieve()
+                                                    .bodyToMono(String.class)
+                                                    .flatMap(link -> {
+                                                        if (link.contains("http")) {
+                                                            //delete existing avatar from AWS
+                                                            if (employee.getAvatar() != null) {
+                                                                return this.deleteAvatar(employeeId, false)
+                                                                        .flatMap(responseEntity -> {
+                                                                            employee.setAvatar(link);
+                                                                            return this.employeeService.saveEmployee(employee)
+                                                                                    .then(Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(link, null))));
+                                                                        });
+
+                                                            } else {
+                                                                employee.setAvatar(link);
+                                                                return this.employeeService.saveEmployee(employee)
+                                                                        .then(Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(link, null))));
+                                                            }
+
+
+
+                                                        } else {
+                                                            return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(null, link)));
+                                                        }
+                                                    });
+
+                                        });
+
+
+                            }else {
+                                return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(null, "invalidEmployee")));
+                            }
+
+                        }))
+                .cast(ResponseEntity.class);
 
     }
 

@@ -49,7 +49,7 @@ public class Employee {
     @Transient
     private List<String> authorities;
     @Transient
-    private List<String> authorizedScheduleNames;
+    private List<String> authorizedScheduleNames = new ArrayList<>();
     @Transient
     private List<Long> authorizedRosters = new ArrayList<>();
 
