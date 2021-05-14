@@ -405,17 +405,39 @@ public class EmployeeHelper {
                                                 subdivision.setName(form.subdivisionName);
                                                 return this.employeeService.saveDivision(division)
                                                         .then(this.employeeService.saveSubdivision(subdivision))
-                                                        .then(Mono.just(ResponseEntity.ok("success")));
+                                                        .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
                                             } else {
-                                                return Mono.just(ResponseEntity.ok("invalid-division"));
+                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalid-division")));
                                             }
                                         });
                             } else {
-                                return Mono.just(ResponseEntity.ok("invalid-division"));
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalid-division")));
                             }
                         })
                 );
     }
+
+    public Mono<ResponseEntity> loadAllSubdivisions() {
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(this.employeeService::getDivisions)
+                .flatMap(divisions -> Flux.fromIterable(divisions)
+                        .flatMap(division -> this.employeeService.getSubdivisions(division.getDivisionId())
+                                .flatMap(subdivisions -> Flux.fromIterable(subdivisions)
+                                        .flatMap(subdivision -> Mono.just(new SubdivisionEntity(division.getName(), subdivision.getName(), division.getDivisionId(), subdivision.getSubdivisionId())))
+                                        .collectList()
+                                )
+                        )
+                        .collectList()
+                )
+                .flatMap(lists -> {
+                    List<SubdivisionEntity> entities = new ArrayList<>();
+                    lists.forEach(entities::addAll);
+                    return Mono.just(ResponseEntity.ok(entities));
+                });
+
+
+    }
+
 
 
 

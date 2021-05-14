@@ -98,6 +98,29 @@ public class EmployeeController {
 
     }
 
+    @PostMapping("/division/update")
+    @PreAuthorize( "hasAuthority('PROVIDER')" +
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+    public Mono<? extends ResponseEntity> updateDivision(@RequestBody @Valid Mono<Forms.DivisionForm> divisionFormMono) {
+        return divisionFormMono
+                .flatMap(this.employeeHelper::updateDivision)
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error updating division, error: ", "error"));
+
+    }
+
+    @GetMapping(value="/subdivision/all")
+    @PreAuthorize( "hasAuthority('PROVIDER')" +
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+    public Mono<? extends ResponseEntity> loadAllSubdivisions() {
+
+        return this.employeeHelper.loadAllSubdivisions()
+                .onErrorResume(e -> {
+                    log.error("Error returning list of subdivisions, error: " + e.getMessage());
+                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                });
+
+    }
+
     @GetMapping(value="/get/time/list/{id}")
     @PreAuthorize( "hasAuthority('PROVIDER')" +
             " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
