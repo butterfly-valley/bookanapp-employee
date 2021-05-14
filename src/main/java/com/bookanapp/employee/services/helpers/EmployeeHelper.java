@@ -330,16 +330,16 @@ public class EmployeeHelper {
                                     return this.deleteEmployeeDetails(employee);
                                 }
                             } else {
-                                return Mono.just("invalidEmployee");
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
 
                             }
                         })
                         .collectList()
                         .flatMap(list -> {
                             if (list.contains("invalidEmployee")) {
-                                return Mono.just(ResponseEntity.ok("invalidEmployee"));
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
                             } else {
-                                return Mono.just(ResponseEntity.ok("deleteEmployeeSuccess"));
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("deleteEmployeeSuccess")));
                             }
                         }));
 
@@ -390,7 +390,7 @@ public class EmployeeHelper {
                                 }
 
                             } else {
-                                return Mono.just(ResponseEntity.ok("invalidEmployee"));
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
                             }
                         }));
     }
