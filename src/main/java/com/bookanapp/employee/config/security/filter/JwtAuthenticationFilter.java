@@ -12,6 +12,7 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -22,10 +23,7 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -48,32 +46,15 @@ public class JwtAuthenticationFilter implements WebFilter {
 
             if (jwt != null) {
                 if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-                    Map<Long, Map<String, List<String>>> principalMap;
+                    UserDetails userDetails;
                     try {
-                        principalMap = this.jwtTokenProvider.getProviderIdFromJWT(jwt);
+                        userDetails = this.jwtTokenProvider.getUserDetailsFromJWT(jwt);
                     } catch (Exception e) {
                         throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalidUser");
                     }
-                    if (principalMap != null) {
+                    if (userDetails != null) {
                         //Process redirect
-                        Map.Entry<Long, Map<String, List<String>>> firstEntry = principalMap.entrySet().iterator().next();
-                        Map.Entry<String, List<String>> firstEntryOfEntry = firstEntry.getValue().entrySet().iterator().next();
-                        UserDetails userDetails;
-
-                        List<ProviderAuthority> authorities = new ArrayList<>();
-                        firstEntryOfEntry.getValue().forEach(
-                                auth -> {
-                                    authorities.add(new ProviderAuthority(auth));
-                                }
-                        );
-
-                        if (firstEntryOfEntry.getKey().equals("provider")) {
-                            userDetails = new ProviderDetails(firstEntry.getKey(), authorities);
-                        } else {
-                            userDetails = new EmployeeDetails(firstEntry.getKey(), authorities);
-                        }
-
-                        return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(userDetails, null, authorities))
+                        return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities()))
                                 .flatMap(authentication -> webFilterChain.filter(serverWebExchange)
                                         .subscriberContext(c -> ReactiveSecurityContextHolder.withAuthentication(authentication)))
                                 .onErrorResume(AuthenticationException.class, e -> {
@@ -84,7 +65,27 @@ public class JwtAuthenticationFilter implements WebFilter {
 
 
                     } else {
-                        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is null");
+                        boolean isApiClient;
+                        try {
+                            isApiClient = this.jwtTokenProvider.getAPIClientFromJWT(jwt);
+                        } catch (Exception e) {
+                            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalidUser");
+                        }
+
+                        if (isApiClient) {
+                            List<ProviderAuthority> authorities = new ArrayList<>();
+                            authorities.add(new ProviderAuthority("API_CLIENT"));
+                            return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(buildAPIClientUser(authorities), null, authorities))
+                                    .flatMap(authentication -> webFilterChain.filter(serverWebExchange)
+                                            .subscriberContext(c -> ReactiveSecurityContextHolder.withAuthentication(authentication)))
+                                    .onErrorResume(AuthenticationException.class, e -> {
+                                        log.error("Authentication Exception", e);
+                                        return webFilterChain.filter(serverWebExchange);
+                                    });
+
+                        } else {
+                            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User is null");
+                        }
                     }
                 } else {
                     throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
@@ -104,5 +105,45 @@ public class JwtAuthenticationFilter implements WebFilter {
         }
         return null;
     }
+
+    private UserDetails buildAPIClientUser(List<ProviderAuthority> authorities) {
+        return new UserDetails() {
+            @Override
+            public Collection<? extends GrantedAuthority> getAuthorities() {
+                return authorities;
+            }
+
+            @Override
+            public String getPassword() {
+                return null;
+            }
+
+            @Override
+            public String getUsername() {
+                return null;
+            }
+
+            @Override
+            public boolean isAccountNonExpired() {
+                return true;
+            }
+
+            @Override
+            public boolean isAccountNonLocked() {
+                return true;
+            }
+
+            @Override
+            public boolean isCredentialsNonExpired() {
+                return true;
+            }
+
+            @Override
+            public boolean isEnabled() {
+                return true;
+            }
+        };
+    }
+
 
 }

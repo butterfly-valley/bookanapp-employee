@@ -1,10 +1,15 @@
 package com.bookanapp.employee.config.security.jwt;
 
 
+import com.bookanapp.employee.entities.rest.EmployeeDetails;
+import com.bookanapp.employee.entities.rest.ProviderAuthority;
+import com.bookanapp.employee.entities.rest.ProviderDetails;
 import io.jsonwebtoken.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -21,7 +26,7 @@ public class JwtTokenProvider {
     private int jwtExpirationInMs;
 
 
-    public Map<Long, Map<String, List<String>>> getProviderIdFromJWT(String token) {
+    public UserDetails getUserDetailsFromJWT(String token) {
         Claims claims = Jwts.parser()
                 .setSigningKey(jwtSecret)
                 .parseClaimsJws(token)
@@ -29,26 +34,29 @@ public class JwtTokenProvider {
         String subject = claims.getSubject();
         String authorities = claims.getAudience();
 
-        Map<Long, Map<String, List<String>>> principalMap = new HashMap<>();
-        Map<String, List<String>> authorityMap = new HashMap<>();
-
         List<String> authorityList = Arrays.asList(authorities.split(","));
 
+        List<ProviderAuthority> authList = new ArrayList<>();
+        authorityList.forEach(
+                auth -> {
+                    authList.add(new ProviderAuthority(auth));
+                }
+        );
+
+
         if  (subject.contains("providerId-")) {
-            authorityMap.put("provider", authorityList);
-            principalMap.put(Long.parseLong(subject.split("providerId-")[1]), authorityMap);
+            return new ProviderDetails(Long.parseLong(subject.split("providerId-")[1]), authList);
+
         }
 
         if  (subject.contains("subProviderId-")) {
-            authorityMap.put("subProvider", authorityList);
-            principalMap.put(Long.parseLong(subject.split("subProviderId-")[1]), authorityMap);
+            String ids = subject.split("subProviderId-")[1];
+            long employeeId = Long.parseLong(ids.split("#")[0]);
+            long providerId = Long.parseLong(ids.split("#")[1]);
+            return new EmployeeDetails(employeeId, authList, providerId);
         }
 
-        if (principalMap.size()>0) {
-            return principalMap;
-        } else {
-            return null;
-        }
+        return null;
 
     }
 

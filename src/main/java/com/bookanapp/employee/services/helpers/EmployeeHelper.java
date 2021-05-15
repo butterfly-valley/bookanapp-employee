@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 public class EmployeeHelper {
 
     private final CommonHelper commonHelper;
-    private final EmployeeService employeeService;
+    public final EmployeeService employeeService;
 
     public Mono<ResponseEntity> currentEmployees(Integer page, Integer employeesPerPage, String employeeId, String subdivisionId, String divisionId){
 

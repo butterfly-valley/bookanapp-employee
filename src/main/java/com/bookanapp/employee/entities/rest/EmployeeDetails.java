@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Transient;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.ArrayList;
@@ -28,15 +29,15 @@ public class EmployeeDetails implements UserDetails{
     private boolean enabled;
     private long providerId;
 
-    public EmployeeDetails(long id, List<ProviderAuthority> authorities) {
+    public EmployeeDetails(long id, List<ProviderAuthority> authorities, long providerId) {
         this.id = id;
         this.authorities = authorities;
         this.accountNonExpired = true;
         this.accountNonLocked = true;
         this.credentialsNonExpired = true;
         this.enabled = true;
+        this.providerId = providerId;
     }
-
 
     @Override
     public List<ProviderAuthority> getAuthorities() {
