@@ -1,6 +1,7 @@
 package com.bookanapp.employee.services.helpers;
 
 import com.bookanapp.employee.config.security.jwt.JwtTokenProvider;
+import com.bookanapp.employee.entities.Employee;
 import com.bookanapp.employee.entities.rest.Provider;
 import com.bookanapp.employee.entities.rest.ProviderDetails;
 import com.bookanapp.employee.entities.rest.EmployeeDetails;
@@ -28,7 +29,7 @@ public class CommonHelper {
     private final EmployeeService employeeService;
 
     @Value("${app.providerServiceUrl}")
-    private String providerServiceUrl;
+    public String providerServiceUrl;
 
     @Value("${app.authServiceUrl}")
     public String authServiceUrl;
@@ -71,6 +72,24 @@ public class CommonHelper {
         );
 
     }
+
+    public Mono<Employee> getCurrentEmployee() {
+        return context.flatMap(
+                context -> {
+                    UserDetails userDetails = (UserDetails) context.getAuthentication().getPrincipal();
+                    if (userDetails instanceof ProviderDetails) {
+                        return Mono.empty();
+                    } else if (userDetails instanceof EmployeeDetails){
+                        return this.employeeService.getEmployee(((EmployeeDetails) userDetails).getId());
+                    } else {
+                        return Mono.empty();
+                    }
+
+                }
+        );
+
+    }
+
     public WebClient buildAPIAccessWebClient(String url) {
         return WebClient.builder()
                 .baseUrl(url)

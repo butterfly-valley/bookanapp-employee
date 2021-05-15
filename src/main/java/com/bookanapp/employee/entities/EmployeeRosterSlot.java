@@ -1,6 +1,7 @@
 package com.bookanapp.employee.entities;
 
 import lombok.Data;
+import org.springframework.data.relational.core.mapping.Table;
 
 
 import java.time.LocalDate;
@@ -9,6 +10,7 @@ import java.time.LocalTime;
 
 
 @Data
+@Table("roster_slot")
 public class EmployeeRosterSlot extends RosterSlot {
 
     public EmployeeRosterSlot(LocalDate date, LocalTime start, LocalTime end) {

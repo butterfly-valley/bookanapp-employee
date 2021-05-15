@@ -1,7 +1,9 @@
 package com.bookanapp.employee.services.helpers;
 
+import com.bookanapp.employee.entities.Employee;
 import com.bookanapp.employee.entities.rest.EmployeeAuthority;
 import com.bookanapp.employee.entities.rest.EmployeeEntity;
+import com.bookanapp.employee.entities.rest.Provider;
 import com.bookanapp.employee.validation.Authorities;
 import com.bookanapp.employee.validation.IdToDelete;
 import com.bookanapp.employee.validation.Password;
@@ -15,6 +17,7 @@ import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -102,4 +105,21 @@ public class Forms {
 
     }
 
+    @Data
+    public  static class TimeOffRequestForm{
+        @NotNull
+        LocalDate initialDate;
+        @NotNull
+        float numberOfDays;
+        @NotNull
+        String balanceType;
+    }
+
+    @Data
+    @AllArgsConstructor
+    static class TimeOffRequestNotificationForm {
+        Provider provider;
+        Employee employee;
+        String recipient;
+    }
 }

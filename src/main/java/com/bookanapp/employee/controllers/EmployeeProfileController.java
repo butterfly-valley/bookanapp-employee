@@ -4,33 +4,33 @@ import com.bookanapp.employee.entities.rest.EmployeeDetails;
 import com.bookanapp.employee.services.helpers.CommonHelper;
 import com.bookanapp.employee.services.helpers.EmployeeHelper;
 import com.bookanapp.employee.services.helpers.EmployeeProfileHelper;
+import com.bookanapp.employee.services.helpers.Forms;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.support.WebExchangeBindException;
 import reactor.core.publisher.Mono;
+
+import javax.validation.Valid;
 
 @RestController
 @CrossOrigin()
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/employee/profile")
-@PreAuthorize("hasAuthority('ROLE_PRO') || hasAuthority('ROLE_BUSINESS') || hasAuthority('ROLE_ENTERPRISE')")
+@PreAuthorize("hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')" +
+        " or hasAuthority('SUBPROVIDER_ROSTER_VIEW') or hasAuthority('SUBPROVIDER_ADMIN')" +
+        " or hasAuthority('SUBPROVIDER_PAY') or hasAuthority('SUBPROVIDER_SCHED')" +
+        " or hasAuthority('SUBPROVIDER_SCHED_VIEW')" )
 public class EmployeeProfileController {
 
       private final EmployeeProfileHelper employeeProfileHelper;
     private final CommonHelper commonHelper;
 
     @GetMapping("/get")
-    @PreAuthorize("hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')" +
-            " or hasAuthority('SUBPROVIDER_ROSTER_VIEW') or hasAuthority('SUBPROVIDER_ADMIN')" +
-            " or hasAuthority('SUBPROVIDER_PAY') or hasAuthority('SUBPROVIDER_SCHED')" +
-            " or hasAuthority('SUBPROVIDER_SCHED_VIEW')" )
     public Mono<? extends ResponseEntity> getAllInfo() {
 
         return this.commonHelper.getCurrentUser()
@@ -48,5 +48,19 @@ public class EmployeeProfileController {
                     return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
                 });
 
+    }
+
+    @PostMapping("/submit/time-off")
+    public Mono<? extends ResponseEntity> submitTimeOff(@RequestBody @Valid Mono<Forms.TimeOffRequestForm> timeOffRequestFormMono) {
+        return timeOffRequestFormMono
+                .flatMap(this.employeeProfileHelper::submitTimeOff)
+                .onErrorResume(e -> {
+                    if (e instanceof WebExchangeBindException) {
+                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+                    } else {
+                      log.error("Error submitting time off request, error: " + e.getMessage());
+                      return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                    }
+                });
     }
 }
