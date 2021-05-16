@@ -2,7 +2,6 @@ package com.bookanapp.employee.controllers;
 
 import com.bookanapp.employee.entities.rest.EmployeeDetails;
 import com.bookanapp.employee.services.helpers.CommonHelper;
-import com.bookanapp.employee.services.helpers.EmployeeHelper;
 import com.bookanapp.employee.services.helpers.EmployeeProfileHelper;
 import com.bookanapp.employee.services.helpers.Forms;
 import lombok.RequiredArgsConstructor;
@@ -67,12 +66,26 @@ public class EmployeeProfileController {
     @PostMapping("/delete/time-off")
     public Mono<? extends ResponseEntity> deleteTimeOff(@RequestBody @Valid Mono<Forms.DeleteForm> deleteFormMono) {
         return deleteFormMono
-                .flatMap(this.employeeProfileHelper::deleteTimeOff);
+                .flatMap(this.employeeProfileHelper::deleteTimeOff)
+                .onErrorResume(e -> {
+                    if (e instanceof WebExchangeBindException) {
+                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+                    } else {
+                        log.error("Error deleting time off request, error: " + e.getMessage());
+                        return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                    }
+                });
+    }
+
+    @PostMapping("/submit/time")
+    public Mono<? extends ResponseEntity> submitAbsence(@RequestBody @Valid Mono<Forms.AbsenceRequestForm> absenceRequestFormMono) {
+        return absenceRequestFormMono
+                .flatMap(this.employeeProfileHelper::submitAbsence);
 //                .onErrorResume(e -> {
 //                    if (e instanceof WebExchangeBindException) {
 //                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
 //                    } else {
-//                        log.error("Error deleting time off request, error: " + e.getMessage());
+//                        log.error("Error submitting absence request, error: " + e.getMessage());
 //                        return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
 //                    }
 //                });

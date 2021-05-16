@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -13,10 +15,10 @@ import java.time.LocalTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TimeOffRequest {
+public class TimeOffRequest implements Persistable<String> {
 
     @Id
-    private long id;
+    private String id;
     private long employeeId;
 
     private LocalDate date;
@@ -27,4 +29,13 @@ public class TimeOffRequest {
     private boolean toBeApproved = true;
     private boolean overtime;
     private String comments;
+
+    @Transient
+    private boolean newRequest;
+
+    @Override
+    @Transient
+    public boolean isNew() {
+        return this.newRequest || id == null;
+    }
 }

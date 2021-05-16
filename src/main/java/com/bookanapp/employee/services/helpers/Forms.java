@@ -19,6 +19,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 
@@ -121,5 +122,88 @@ public class Forms {
         Provider provider;
         Employee employee;
         String recipient;
+    }
+
+
+    @Data
+    public static class RosterDay{
+        @NotBlank
+        String weekday;
+        @NotNull
+        List<RosterDaySchedule> schedule;
+
+        @Getter
+        @Setter
+        public static class RosterDaySchedule{
+            @NotNull
+            RosterDayScheduleHour start;
+            @NotNull
+            RosterDayScheduleHour end;
+
+            @Getter
+            @Setter
+            public static class RosterDayScheduleHour{
+                @NotNull
+                int hour;
+                @NotNull
+                int minute;
+            }
+
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Day day = (Day) o;
+            return Objects.equals(weekday, day.weekday);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(weekday);
+        }
+    }
+
+    @Data
+    public static class Day{
+        @NotBlank
+        String weekday;
+        @NotNull
+        List<DaySchedule> schedule;
+
+        @Getter
+        @Setter
+        public static class DaySchedule{
+            RosterDay.RosterDaySchedule.RosterDayScheduleHour start;
+            RosterDay.RosterDaySchedule.RosterDayScheduleHour end;
+
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Day day = (Day) o;
+            return Objects.equals(weekday, day.weekday);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(weekday);
+        }
+    }
+
+
+    @Data
+    public static class AbsenceRequestForm {
+
+        @NotNull
+        LocalDate date;
+        RosterDay.RosterDaySchedule.RosterDayScheduleHour start;
+        RosterDay.RosterDaySchedule.RosterDayScheduleHour end;
+        String comments;
+        boolean overtime;
+
     }
 }

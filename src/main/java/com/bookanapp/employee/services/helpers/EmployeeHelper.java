@@ -956,18 +956,17 @@ public class EmployeeHelper {
 
         return client.get()
                 .retrieve()
-                .bodyToMono(EmployeeAuthority[].class)
+                .bodyToMono(String[].class)
                 .flatMap(array -> {
-                    var auths = Arrays.asList(array);
-                    List<String> authorities = new ArrayList<>();
-                    auths.forEach(
-                            employeeAuthority -> {
-                                if (!employeeAuthority.getAuthority().equals("ROLE_PRO")
-                                        || !employeeAuthority.getAuthority().equals("ROLE_BUSINESS")
-                                        || !employeeAuthority.getAuthority().equals("ROLE_ENTERPRISE"))
-                                    authorities.add(employeeAuthority.getAuthority());
-                            }
-                    );
+                    var authorities = Arrays.asList(array);
+//                     auths.forEach(
+//                            employeeAuthority -> {
+//                                if (!employeeAuthority.getAuthority().equals("ROLE_PRO")
+//                                        || !employeeAuthority.getAuthority().equals("ROLE_BUSINESS")
+//                                        || !employeeAuthority.getAuthority().equals("ROLE_ENTERPRISE"))
+//                                    authorities.add(employeeAuthority.getAuthority());
+//                            }
+//                    );
                     return this.employeeService.getEmployee(employeeId)
                             .flatMap(employee -> this.employeeService.getFamily(employeeId)
                                     .flatMap(familyMembers -> {

@@ -22,7 +22,7 @@ public class TimeRequestEntity {
 
     }
 
-    private long id;
+    private String id;
     private boolean approved;
     private boolean toBeApproved;
     private boolean overtime;

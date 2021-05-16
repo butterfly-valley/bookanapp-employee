@@ -1,12 +1,9 @@
 package com.bookanapp.employee.services.helpers;
 
-import com.bookanapp.employee.entities.AuthorizedSchedule;
 import com.bookanapp.employee.entities.Employee;
 import com.bookanapp.employee.entities.EmployeeRosterSlot;
-import com.bookanapp.employee.entities.rest.EmployeeAuthority;
-import com.bookanapp.employee.entities.rest.EmployeeDetails;
-import com.bookanapp.employee.entities.rest.EmployeeEntity;
-import com.bookanapp.employee.entities.rest.Provider;
+import com.bookanapp.employee.entities.TimeOffRequest;
+import com.bookanapp.employee.entities.rest.*;
 import com.bookanapp.employee.services.EmployeeService;
 import com.bookanapp.employee.services.RosterService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +19,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 
 @Slf4j
@@ -247,6 +245,30 @@ public class EmployeeProfileHelper {
                         ));
     }
 
+
+    public Mono<ResponseEntity> submitAbsence(Forms.AbsenceRequestForm timeRequestForm) {
+        return this.commonHelper.getCurrentEmployee()
+                .flatMap(employee -> {
+                    LocalTime start = LocalTime.of(timeRequestForm.start.hour, timeRequestForm.start.minute);
+                    LocalTime end = LocalTime.of(timeRequestForm.end.hour, timeRequestForm.end.minute);
+
+                    TimeOffRequest timeRequest = TimeOffRequest.builder()
+                            .id(UUID.randomUUID().toString())
+                            .toBeApproved(true)
+                            .employeeId(employee.getEmployeeId())
+                            .date(timeRequestForm.date)
+                            .start(start)
+                            .end(end)
+                            .overtime(timeRequestForm.overtime)
+                            .comments(timeRequestForm.comments)
+                            .newRequest(true)
+                            .build();
+
+                    return this.rosterService.saveTimeOffRequest(timeRequest)
+                            .flatMap(savedRequest -> Mono.just(ResponseEntity.ok(new TimeRequestEntity(savedRequest))));
+
+                });
+    }
 
     private Mono<ResponseEntity> sendEmailToSupervisor(Employee emp) {
         return this.employeeService.getEmployee(emp.getEmployeeId())
