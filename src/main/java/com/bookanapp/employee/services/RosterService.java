@@ -22,4 +22,12 @@ public class RosterService {
     public Mono<List<EmployeeRosterSlot>> saveRosterSlots(List<EmployeeRosterSlot> slots) {
         return this.rosterSlotRepository.saveAll(slots).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
+
+    public Mono<EmployeeRosterSlot> findSlot(long slotId) {
+        return this.rosterSlotRepository.findById(slotId);
+    }
+
+    public Mono<Void> deleteSlot(EmployeeRosterSlot slot) {
+        return this.rosterSlotRepository.delete(slot);
+    }
 }

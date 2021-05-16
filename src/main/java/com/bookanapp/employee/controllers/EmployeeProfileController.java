@@ -63,4 +63,18 @@ public class EmployeeProfileController {
                     }
                 });
     }
+
+    @PostMapping("/delete/time-off")
+    public Mono<? extends ResponseEntity> deleteTimeOff(@RequestBody @Valid Mono<Forms.DeleteForm> deleteFormMono) {
+        return deleteFormMono
+                .flatMap(this.employeeProfileHelper::deleteTimeOff);
+//                .onErrorResume(e -> {
+//                    if (e instanceof WebExchangeBindException) {
+//                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+//                    } else {
+//                        log.error("Error deleting time off request, error: " + e.getMessage());
+//                        return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+//                    }
+//                });
+    }
 }

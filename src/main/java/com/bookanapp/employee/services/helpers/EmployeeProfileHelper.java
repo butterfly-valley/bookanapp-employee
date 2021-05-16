@@ -29,8 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmployeeProfileHelper {
 
-    public EmployeeHelper employeeHelper;
-    public CommonHelper commonHelper;
+    private final CommonHelper commonHelper;
     private final EmployeeService employeeService;
     private final RosterService rosterService;
 
@@ -175,7 +174,7 @@ public class EmployeeProfileHelper {
                                     EmployeeRosterSlot slot = new EmployeeRosterSlot(timeOffRequestForm.initialDate, LocalTime.MIN, LocalTime.MAX);
                                     slot.setEmployeeId(employee.getEmployeeId());
                                     slot.setTimeOff(true);
-                                    slot.setBalanceType(EmployeeRosterSlot.TimeOffBalanceType.valueOf(timeOffRequestForm.balanceType));
+                                    slot.setBalanceType(EmployeeRosterSlot.TimeOffBalanceType.valueOf(timeOffRequestForm.balanceType).ordinal());
                                     slot.setColor("gray");
                                     slot.setHalfDayOff(true);
                                     slotList.add(slot);
@@ -186,13 +185,14 @@ public class EmployeeProfileHelper {
                                         EmployeeRosterSlot slot = new EmployeeRosterSlot(date, LocalTime.MIN, LocalTime.MAX);
                                         slot.setEmployeeId(employee.getEmployeeId());
                                         slot.setTimeOff(true);
-                                        slot.setBalanceType(EmployeeRosterSlot.TimeOffBalanceType.valueOf(timeOffRequestForm.balanceType));
+                                        slot.setBalanceType(EmployeeRosterSlot.TimeOffBalanceType.valueOf(timeOffRequestForm.balanceType).ordinal());
                                         slot.setColor("gray");
                                         slotList.add(slot);
                                     }
                                 }
 
                                 return this.rosterService.saveRosterSlots(slotList)
+                                        .then(this.employeeService.saveTimeOff(balance))
                                         .then(sendEmailToSupervisor(employee));
 
                             });
@@ -201,54 +201,101 @@ public class EmployeeProfileHelper {
                 });
     }
 
-    private Mono<ResponseEntity> sendEmailToSupervisor(Employee emp) {
-        return this.employeeService.getAllEmployees(emp.getProviderId())
-                .flatMap(employees -> {
-                    var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.providerServiceUrl + "/provider/get/" + emp.getProviderId());
+    public Mono<ResponseEntity> deleteTimeOff(Forms.DeleteForm deleteForm) {
+        return this.commonHelper.getCurrentEmployee()
+                .flatMap(employee -> this.employeeService.getTimeOff(employee.getEmployeeId())
+                        .flatMap(balance -> Flux.fromIterable(deleteForm.idsToDelete)
+                                .flatMap(id -> this.rosterService.findSlot(Long.parseLong(id))
+                                        .flatMap(slot -> {
+                                            if (slot.getEmployeeId() == employee.getEmployeeId()) {
+                                                switch (slot.getBalanceType()) {
+                                                    case 0:
+                                                        balance.setVacationDays(balance.getVacationDays() + (slot.isHalfDayOff() ? 0.5f : 1.0f));
+                                                        break;
+                                                    case 1:
+                                                        balance.setVacationRolloverDays(balance.getVacationRolloverDays() + (slot.isHalfDayOff() ? 0.5f : 1.0f));
+                                                        break;
+                                                    case 2:
+                                                        balance.setComplimentaryBankHolidayDays(balance.getComplimentaryBankHolidayDays() + (slot.isHalfDayOff() ? 0.5f : 1.0f));
+                                                        break;
+                                                    case 3:
+                                                        balance.setComplimentaryBankHolidayRolloverDays(balance.getComplimentaryBankHolidayRolloverDays()  + (slot.isHalfDayOff() ? 0.5f : 1.0f));
+                                                        break;
+                                                    case 4:
+                                                        balance.setCompensationDays(balance.getCompensationDays()  + (slot.isHalfDayOff() ? 0.5f : 1.0f));
+                                                        break;
+                                                    default:
+                                                        balance.setCompensationRolloverDays(balance.getCompensationRolloverDays()  + (slot.isHalfDayOff() ? 0.5f : 1.0f));
 
-                    return client.get()
-                            .retrieve()
-                            .bodyToMono(Provider.class)
-                            .flatMap(provider -> Flux.fromIterable(employees)
-                                    .filter(employee -> !employee.getEmployeeId().equals(emp.getEmployeeId()))
-                                    .flatMap(employee -> {
-                                        var authClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "employee/get/authorities/" +employee.getEmployeeId());
-                                        return authClient.get()
-                                                .retrieve()
-                                                .bodyToMono(String[].class)
-                                                .flatMap(array -> {
-                                                    var authorities = Arrays.asList(array);
-                                                    if (authorities.contains("SUBPROVIDER_ROSTER") || authorities.contains("SUBPROVIDER_FULL")) {
-                                                        return Mono.just(employee.getUsername());
-                                                    } else {
-                                                        return Mono.empty();
-                                                    }
+                                                }
+                                                return this.rosterService.deleteSlot(slot)
+                                                        .then(Mono.just("ok"));
+                                            } else {
+                                                return Mono.just("invalidSlot");
+                                            }
 
-
-                                                });
-                                    })
-                                    .collectList()
-                                    .flatMap(listOfAddresses -> {
-                                        listOfAddresses.add(provider.getUsername());
-                                        return Flux.fromIterable(listOfAddresses)
-                                                .flatMap(emailAddress -> {
-                                                    var emailClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl + "/employee/timeoff/notify");
-                                                    var form = new Forms.TimeOffRequestNotificationForm(provider, emp, emailAddress);
-                                                    return emailClient.post()
-                                                            .body(Mono.just(form), Forms.TimeOffRequestNotificationForm.class)
-                                                            .retrieve()
-                                                            .bodyToMono(String.class);
-                                                })
-                                                .collectList()
-                                                .flatMap(list -> Mono.just(ResponseEntity.ok("ok")));
-                                    }))
-                            .cast(ResponseEntity.class)
-                            .onErrorResume(e -> {
-                                        log.error("Error while sending time off request email, error: " + e.getMessage());
-                                        return Mono.just(ResponseEntity.ok("ok"));
+                                        }))
+                                .collectList()
+                                .flatMap(list -> {
+                                    if (list.contains("invalidSlot")) {
+                                        return Mono.just(ResponseEntity.ok("invalidSlot"));
+                                    } else {
+                                        return this.employeeService.saveTimeOff(balance)
+                                                .then(Mono.just(ResponseEntity.ok("ok")));
                                     }
-                            );
-                });
+                                })
+                        ));
+    }
+
+
+    private Mono<ResponseEntity> sendEmailToSupervisor(Employee emp) {
+        return this.employeeService.getEmployee(emp.getEmployeeId())
+                .flatMap(currentEmployee -> this.employeeService.getAllEmployees(emp.getProviderId())
+                        .flatMap(employees -> {
+                            var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.providerServiceUrl + "/provider/get/" + emp.getProviderId());
+
+                            return client.get()
+                                    .retrieve()
+                                    .bodyToMono(Provider.class)
+                                    .flatMap(provider -> Flux.fromIterable(employees)
+                                            .filter(employee -> !employee.getEmployeeId().equals(emp.getEmployeeId()))
+                                            .flatMap(employee -> {
+                                                var authClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/authorities/" +employee.getEmployeeId());
+                                                return authClient.get()
+                                                        .retrieve()
+                                                        .bodyToMono(String[].class)
+                                                        .flatMap(array -> {
+                                                            var authorities = Arrays.asList(array);
+                                                            if (authorities.contains("SUBPROVIDER_ROSTER") || authorities.contains("SUBPROVIDER_FULL")) {
+                                                                return Mono.just(employee.getUsername());
+                                                            } else {
+                                                                return Mono.empty();
+                                                            }
+
+                                                        });
+                                            })
+                                            .collectList()
+                                            .flatMap(listOfAddresses -> {
+                                                listOfAddresses.add(provider.getUsername());
+                                                return Flux.fromIterable(listOfAddresses)
+                                                        .flatMap(emailAddress -> {
+                                                            var emailClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl + "/email/employee/timeoff/notify");
+                                                            var form = new Forms.TimeOffRequestNotificationForm(provider, currentEmployee, emailAddress);
+                                                            return emailClient.post()
+                                                                    .body(Mono.just(form), Forms.TimeOffRequestNotificationForm.class)
+                                                                    .retrieve()
+                                                                    .bodyToMono(String.class);
+                                                        })
+                                                        .collectList()
+                                                        .flatMap(list -> Mono.just(ResponseEntity.ok("ok")));
+                                            }))
+                                    .cast(ResponseEntity.class)
+                                    .onErrorResume(e -> {
+                                                log.error("Error while sending time off request email, error: " + e.getMessage());
+                                                return Mono.just(ResponseEntity.ok("ok"));
+                                            }
+                                    );
+                        }));
 
     }
 

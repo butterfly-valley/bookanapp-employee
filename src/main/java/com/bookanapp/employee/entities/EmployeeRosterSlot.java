@@ -27,15 +27,25 @@ public class EmployeeRosterSlot extends RosterSlot {
     private boolean halfDayOff = false;
     private boolean timeOffApproved = false;
     private boolean timeOffDenied = false;
-    private TimeOffBalanceType balanceType;
+    private int balanceType;
 
     public enum TimeOffBalanceType{
-        VACS,
-        VACSROLLOVER,
-        BANK,
-        BANKROLLOVER,
-        COMP,
-        COMPROLLOVER
+        VACS(0),
+        VACSROLLOVER(1),
+        BANK(2),
+        BANKROLLOVER(3),
+        COMP(4),
+        COMPROLLOVER(5);
+
+        private final int type;
+
+        private TimeOffBalanceType(int type) {
+            this.type = type;
+        }
+
+        public int getHierarchy() {
+            return type;
+        }
     }
 
 

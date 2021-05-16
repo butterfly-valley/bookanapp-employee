@@ -2,14 +2,15 @@ package com.bookanapp.employee.entities.rest;
 
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
 
 @Data
-
-public class Provider implements Cloneable, Serializable {
+@NoArgsConstructor
+public class Provider{
 
     private long entityId;
     private long id;
