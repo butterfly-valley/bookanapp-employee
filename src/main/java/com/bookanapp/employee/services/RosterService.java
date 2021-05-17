@@ -1,9 +1,9 @@
 package com.bookanapp.employee.services;
 
 import com.bookanapp.employee.entities.EmployeeRosterSlot;
-import com.bookanapp.employee.entities.TimeOffRequest;
+import com.bookanapp.employee.entities.AbsenceRequest;
 import com.bookanapp.employee.repositories.EmployeeRosterSlotRepository;
-import com.bookanapp.employee.repositories.TimeOffRequestRepository;
+import com.bookanapp.employee.repositories.AbsenceRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -16,7 +16,7 @@ import java.util.List;
 public class RosterService {
 
     private final EmployeeRosterSlotRepository rosterSlotRepository;
-    private final TimeOffRequestRepository timeOffRequestRepository;
+    private final AbsenceRequestRepository absenceRequestRepository;
 
     public Mono<List<EmployeeRosterSlot>> getRosterSlots(long employeeId) {
         return this.rosterSlotRepository.findAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
@@ -34,7 +34,10 @@ public class RosterService {
         return this.rosterSlotRepository.delete(slot);
     }
 
-    public Mono<TimeOffRequest> saveTimeOffRequest(TimeOffRequest request) {
-        return this.timeOffRequestRepository.save(request);
+    public Mono<AbsenceRequest> saveAbsenceRequest(AbsenceRequest request) {
+        return this.absenceRequestRepository.save(request);
+    }
+    public Mono<AbsenceRequest> getAbsenceRequest(String id) {
+        return this.absenceRequestRepository.findById(id);
     }
 }

@@ -7,7 +7,9 @@ import com.bookanapp.employee.services.helpers.Forms;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.support.WebExchangeBindException;
@@ -49,6 +51,21 @@ public class EmployeeProfileController {
 
     }
 
+    @PostMapping(value = "/edit")
+    public Mono<? extends ResponseEntity> editProfileInfo(@RequestBody @Valid Mono<Forms.ProfileEditForm> profileEditFormMono) {
+        return profileEditFormMono
+                .flatMap(this.employeeProfileHelper::editProfile);
+//                .onErrorResume(e -> {
+//                    if (e instanceof WebExchangeBindException) {
+//                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+//                    } else {
+//                        log.error("Error editing profile, error: " + e.getMessage());
+//                        return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+//                    }
+//                });
+
+    }
+
     @PostMapping("/submit/time-off")
     public Mono<? extends ResponseEntity> submitTimeOff(@RequestBody @Valid Mono<Forms.TimeOffRequestForm> timeOffRequestFormMono) {
         return timeOffRequestFormMono
@@ -80,14 +97,55 @@ public class EmployeeProfileController {
     @PostMapping("/submit/time")
     public Mono<? extends ResponseEntity> submitAbsence(@RequestBody @Valid Mono<Forms.AbsenceRequestForm> absenceRequestFormMono) {
         return absenceRequestFormMono
-                .flatMap(this.employeeProfileHelper::submitAbsence);
+                .flatMap(this.employeeProfileHelper::submitAbsence)
+                .onErrorResume(e -> {
+                    if (e instanceof WebExchangeBindException) {
+                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+                    } else {
+                        log.error("Error submitting absence request, error: " + e.getMessage());
+                        return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                    }
+                });
+    }
+
+    @GetMapping("/get/time/list")
+    public Mono<? extends ResponseEntity> getListOfTimeRequests() {
+
+        return this.employeeProfileHelper.getListOfAbsencesOrOvertime()
+                .onErrorResume(e -> {
+                    log.error("Error displaying time request list, error: " + e.getMessage());
+                    return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(null, "imageUploadError")));
+                });
+
+    }
+
+    @PostMapping(value = "/submit/time/attachment/{id}", produces="application/json", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<? extends ResponseEntity> uploadAttachment(@PathVariable("id") String id, @RequestPart("fileKey") Mono<FilePart> file) {
+        return this.employeeProfileHelper.uploadAttachment(id, file);
 //                .onErrorResume(e -> {
-//                    if (e instanceof WebExchangeBindException) {
-//                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
-//                    } else {
-//                        log.error("Error submitting absence request, error: " + e.getMessage());
-//                        return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
-//                    }
+//                    log.error("Error saving attachment for absence request: " + id + ", error: " + e.getMessage());
+//                    return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(null, "imageUploadError")));
 //                });
+
+    }
+
+    @GetMapping(value = "/get/time/attachment/{requestId}")
+    public Mono<? extends ResponseEntity> downloadAttachment( @PathVariable("requestId") String requestId, @RequestParam("key") String key) {
+        return this.employeeProfileHelper.downloadAttachment(requestId, key);
+//                .onErrorResume(e -> {
+//                    log.error("Error saving attachment for absence request: " + id + ", error: " + e.getMessage());
+//                    return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(null, "imageUploadError")));
+//                });
+
+    }
+
+    @GetMapping(value = "/delete/time/attachment/{requestId}")
+    public Mono<? extends ResponseEntity> deleteAttachment( @PathVariable("requestId") String requestId, @RequestParam("key") String key) {
+        return this.employeeProfileHelper.deleteAttachment(requestId, key);
+//                .onErrorResume(e -> {
+//                    log.error("Error saving attachment for absence request: " + id + ", error: " + e.getMessage());
+//                    return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(null, "imageUploadError")));
+//                });
+
     }
 }

@@ -1,16 +1,16 @@
 package com.bookanapp.employee.services.helpers;
 
+import com.bookanapp.employee.entities.Address;
 import com.bookanapp.employee.entities.Employee;
+import com.bookanapp.employee.entities.FamilyMember;
+import com.bookanapp.employee.entities.Phone;
 import com.bookanapp.employee.entities.rest.EmployeeAuthority;
 import com.bookanapp.employee.entities.rest.EmployeeEntity;
 import com.bookanapp.employee.entities.rest.Provider;
 import com.bookanapp.employee.validation.Authorities;
 import com.bookanapp.employee.validation.IdToDelete;
 import com.bookanapp.employee.validation.Password;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 
 import javax.validation.constraints.Email;
@@ -206,4 +206,36 @@ public class Forms {
         boolean overtime;
 
     }
+
+    @Data
+    public static class ProfileEditForm {
+
+        List<FamilyMember> family;
+        List<Phone> phones;
+        String bankAccount;
+        Address address;
+        @Email
+        String personalEmail;
+
+    }
+
+    @Data
+    static class Phone{
+        InternationalPhone phone;
+        @NotNull
+        com.bookanapp.employee.entities.Phone.PhoneType type;
+    }
+
+    @Data
+    @NoArgsConstructor
+    static class InternationalPhone{
+        String number;
+        String internationalNumber;
+        String nationalNumber;
+        String countryCode;
+        String dialCode;
+        String id;
+    }
+
+
 }

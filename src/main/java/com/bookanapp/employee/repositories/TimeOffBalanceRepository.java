@@ -4,6 +4,6 @@ import com.bookanapp.employee.entities.TimeOffBalance;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Mono;
 
-public interface EmployeeTimeOffRepository extends ReactiveCrudRepository<TimeOffBalance, Long> {
+public interface TimeOffBalanceRepository extends ReactiveCrudRepository<TimeOffBalance, Long> {
     Mono<TimeOffBalance> getByEmployeeId(long employeeId);
 }

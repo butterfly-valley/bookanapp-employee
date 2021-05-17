@@ -1,25 +1,25 @@
 package com.bookanapp.employee.services.helpers;
 
-import com.bookanapp.employee.entities.Employee;
-import com.bookanapp.employee.entities.EmployeeRosterSlot;
-import com.bookanapp.employee.entities.TimeOffRequest;
+import com.bookanapp.employee.entities.*;
 import com.bookanapp.employee.entities.rest.*;
 import com.bookanapp.employee.services.EmployeeService;
 import com.bookanapp.employee.services.RosterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.BodyInserters;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 @Slf4j
@@ -52,7 +52,7 @@ public class EmployeeProfileHelper {
                         })
                         .switchIfEmpty(Mono.just(employee))
                 )
-                .flatMap(employee -> this.employeeService.getTimeOff(employeeId)
+                .flatMap(employee -> this.employeeService.getTimeOffBalance(employeeId)
                         .flatMap(timeOffBalance -> {
                             employee.setTimeOffBalance(timeOffBalance);
                             return Mono.just(employee);
@@ -80,8 +80,6 @@ public class EmployeeProfileHelper {
 
     public Mono<EmployeeEntity> buildEmployeeEntity(Employee employee) {
 
-
-
         return  Mono.just(EmployeeEntity.builder()
                 .id(employee.getEmployeeId())
                 .name(employee.getName())
@@ -105,6 +103,94 @@ public class EmployeeProfileHelper {
 
     }
 
+    public Mono<ResponseEntity> editProfile(Forms.ProfileEditForm profileEditForm) {
+        return this.commonHelper.getCurrentEmployee()
+                .flatMap(emp -> this.loadEmployee(emp.getEmployeeId()))
+                .flatMap(employee -> {
+                    long employeeId = employee.getEmployeeId();
+                    boolean newFamily = false;
+                    boolean newPhoneList = false;
+                    if (profileEditForm.family != null && profileEditForm.family.size()>0) {
+                        employee.getFamily().clear();
+                        employee.getFamily().addAll(profileEditForm.family);
+                        employee.getFamily().forEach(familyMember -> familyMember.setEmployeeId(employeeId));
+                        newFamily = true;
+                    }
+
+                    if (profileEditForm.phones != null && profileEditForm.phones.size()>0) {
+                        List<Phone> newPhones = new ArrayList<>();
+                        List<Phone> phonesToKeep = new ArrayList<>();
+                        for (Forms.Phone phone : profileEditForm.phones) {
+                            if (phone.type!=null) {
+                                String code = phone.phone.dialCode.split("\\+")[1];
+                                String number = phone.phone.nationalNumber.replace(" ", "");
+                                Phone newPhone = new Phone(employeeId, phone.type, code, number);
+                                if (!employee.getPhones().contains(newPhone)) {
+                                    newPhones.add(new Phone(employeeId, phone.type, code, number));
+                                } else {
+                                    phonesToKeep.add(new Phone(employeeId, phone.type, code, number));
+                                }
+                            } else {
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("phoneTypeError")));
+                            }
+                        }
+                        employee.getPhones().clear();
+                        employee.getPhones().addAll(phonesToKeep);
+                        employee.getPhones().addAll(newPhones);
+                        newPhoneList = true;
+                    }
+
+                    if (profileEditForm.bankAccount != null && profileEditForm.bankAccount.length() > 2) {
+                        employee.setBankAccount(profileEditForm.bankAccount);
+                    }
+
+                    if (profileEditForm.address != null) {
+                        this.setAddress(employee.getAddress(), profileEditForm, employeeId);
+                    }
+
+                    if (profileEditForm.personalEmail != null) {
+                        employee.setPersonalEmail(profileEditForm.personalEmail);
+                    }
+
+
+                    boolean finalNewFamily = newFamily;
+                    boolean finalNewPhoneList = newPhoneList;
+                    return this.employeeService.saveEmployee(employee)
+                            .flatMap(savedEmployee -> {
+                                if (finalNewFamily) {
+                                    return this.employeeService.getFamily(employeeId)
+                                            .flatMap(this.employeeService::deleteFamily)
+                                            .then(this.employeeService.saveFamily(employee.getFamily()));
+                                } else {
+                                    return Mono.just(employee.getFamily());
+                                }
+                            })
+                            .flatMap(familyMembers -> {
+                                if (finalNewPhoneList) {
+                                    return this.employeeService.getPhones(employeeId)
+                                            .flatMap(this.employeeService::deletePhones)
+                                            .then(this.employeeService.savePhones(employee.getPhones()));
+                                } else {
+                                    return Mono.just(employee.getPhones());
+                                }
+                            })
+                            .then(this.employeeService.saveFamily(employee.getFamily()))
+                            .flatMap(familyMembers -> {
+                                if (employee.getAddress().getStreet() != null) {
+                                    return this.employeeService.saveAddress(employee.getAddress())
+                                            .then(this.buildEmployeeEntity(employee)
+                                                    .flatMap(employeeEntity -> Mono.just(ResponseEntity.ok(employeeEntity))));
+                                } else {
+                                    return this.buildEmployeeEntity(employee)
+                                            .flatMap(employeeEntity -> Mono.just(ResponseEntity.ok(employeeEntity)));
+                                }
+                            });
+
+                });
+
+    }
+
+
     public Mono<ResponseEntity> submitTimeOff(Forms.TimeOffRequestForm timeOffRequestForm) {
         return this.commonHelper.getCurrentEmployee()
                 .flatMap(employee -> {
@@ -114,7 +200,7 @@ public class EmployeeProfileHelper {
                     if (daysRequested > 1 && this.hasDecimal(daysRequested))
                         return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("noDecimalsAllowed")));
 
-                    return this.employeeService.getTimeOff(employee.getEmployeeId())
+                    return this.employeeService.getTimeOffBalance(employee.getEmployeeId())
                             .flatMap(balance -> {
                                 // check if there is enough day balance and deduct
                                 for (EmployeeRosterSlot.TimeOffBalanceType timeOffBalanceType : EmployeeRosterSlot.TimeOffBalanceType.values()) {
@@ -190,7 +276,7 @@ public class EmployeeProfileHelper {
                                 }
 
                                 return this.rosterService.saveRosterSlots(slotList)
-                                        .then(this.employeeService.saveTimeOff(balance))
+                                        .then(this.employeeService.saveTimeOffBalance(balance))
                                         .then(sendEmailToSupervisor(employee));
 
                             });
@@ -201,7 +287,7 @@ public class EmployeeProfileHelper {
 
     public Mono<ResponseEntity> deleteTimeOff(Forms.DeleteForm deleteForm) {
         return this.commonHelper.getCurrentEmployee()
-                .flatMap(employee -> this.employeeService.getTimeOff(employee.getEmployeeId())
+                .flatMap(employee -> this.employeeService.getTimeOffBalance(employee.getEmployeeId())
                         .flatMap(balance -> Flux.fromIterable(deleteForm.idsToDelete)
                                 .flatMap(id -> this.rosterService.findSlot(Long.parseLong(id))
                                         .flatMap(slot -> {
@@ -238,7 +324,7 @@ public class EmployeeProfileHelper {
                                     if (list.contains("invalidSlot")) {
                                         return Mono.just(ResponseEntity.ok("invalidSlot"));
                                     } else {
-                                        return this.employeeService.saveTimeOff(balance)
+                                        return this.employeeService.saveTimeOffBalance(balance)
                                                 .then(Mono.just(ResponseEntity.ok("ok")));
                                     }
                                 })
@@ -252,7 +338,7 @@ public class EmployeeProfileHelper {
                     LocalTime start = LocalTime.of(timeRequestForm.start.hour, timeRequestForm.start.minute);
                     LocalTime end = LocalTime.of(timeRequestForm.end.hour, timeRequestForm.end.minute);
 
-                    TimeOffRequest timeRequest = TimeOffRequest.builder()
+                    AbsenceRequest timeRequest = AbsenceRequest.builder()
                             .id(UUID.randomUUID().toString())
                             .toBeApproved(true)
                             .employeeId(employee.getEmployeeId())
@@ -264,11 +350,122 @@ public class EmployeeProfileHelper {
                             .newRequest(true)
                             .build();
 
-                    return this.rosterService.saveTimeOffRequest(timeRequest)
+                    return this.rosterService.saveAbsenceRequest(timeRequest)
                             .flatMap(savedRequest -> Mono.just(ResponseEntity.ok(new TimeRequestEntity(savedRequest))));
 
                 });
     }
+
+    public Mono<ResponseEntity> getListOfAbsencesOrOvertime() {
+        return this.commonHelper.getCurrentEmployee()
+                .flatMap(employee -> this.employeeService.getTimeOffRequest(employee.getEmployeeId())
+                        .flatMap(timeOffRequests -> Flux.fromIterable(timeOffRequests)
+                                .flatMap(request -> {
+                                    var entity = new TimeRequestEntity(request);
+                                    var attachmentClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl +
+                                            "/upload/timeoff/attachments/" + request.getId());
+                                    return attachmentClient.get()
+                                            .retrieve()
+                                            .bodyToMono(String[].class)
+                                            .flatMap(attachmentArray -> {
+                                                entity.setAttachments(Arrays.asList(attachmentArray));
+                                                return Mono.just(entity);
+                                            });
+                                })
+                                .collectList()
+                                .flatMap(entities -> {
+                                    var sortedEntities = entities.stream()
+                                            .sorted(Comparator.comparing(TimeRequestEntity::getStart))
+                                            .collect(Collectors.toList());
+
+                                    Collections.reverse(sortedEntities);
+                                    return Mono.just(ResponseEntity.ok(sortedEntities));
+                                })));
+
+    }
+
+    public Mono<ResponseEntity> uploadAttachment(String id, Mono<FilePart> file) {
+        return this.rosterService.getAbsenceRequest(id)
+                .flatMap(absenceRequest -> this.commonHelper.getCurrentEmployee()
+                        .flatMap(employee -> {
+                            if (absenceRequest.getEmployeeId() == employee.getEmployeeId()) {
+                                return file
+                                        .flatMap(filePart -> {
+                                            MultipartBodyBuilder builder = new MultipartBodyBuilder();
+                                            builder.part("file", filePart)
+                                                    .header("content-type", Objects.requireNonNull(filePart.headers().getContentType()).toString());
+
+                                            var uploadClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl +
+                                                    "/upload/image/?absenceRequestId=" + id);
+
+                                            return uploadClient
+                                                    .post()
+                                                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                                                    .body(BodyInserters.fromMultipartData(builder.build()))
+                                                    .retrieve()
+                                                    .bodyToMono(String.class)
+                                                    .flatMap(link -> {
+                                                        if (link.contains("http")) {
+                                                            return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(link, null)));
+                                                        } else {
+                                                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse(link)));
+                                                        }
+                                                    });
+
+                                        });
+                            } else {
+                                return Mono.just(ResponseEntity.ok("error"));
+                            }
+                        } ));
+    }
+
+    public Mono<ResponseEntity> downloadAttachment(String id, String key) {
+        return this.rosterService.getAbsenceRequest(id)
+                .flatMap(absenceRequest -> this.commonHelper.getCurrentEmployee()
+                        .flatMap(employee -> {
+                            if (absenceRequest.getEmployeeId() == employee.getEmployeeId()) {
+                                var uploadClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl +
+                                        "/upload/absence-request/attachment/get/" + id + "?key=" + key);
+
+                                return uploadClient
+                                        .get()
+                                        .retrieve()
+                                        .bodyToMono(byte[].class)
+                                        .flatMap(file -> Mono.just(ResponseEntity.ok(file)));
+
+                            } else {
+                                return Mono.just(ResponseEntity.ok("error"));
+                            }
+                        } ));
+    }
+
+    public Mono<ResponseEntity> deleteAttachment(String id, String key) {
+        return this.rosterService.getAbsenceRequest(id)
+                .flatMap(absenceRequest -> this.commonHelper.getCurrentEmployee()
+                        .flatMap(employee -> {
+                            if (absenceRequest.getEmployeeId() == employee.getEmployeeId()) {
+                                var deleteClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl
+                                        + "/upload/delete?=bucket=bookanapp-employee-absence-request-attachment&link="+ key);
+
+                                return deleteClient
+                                        .get()
+                                        .retrieve()
+                                        .bodyToMono(String.class)
+                                        .flatMap(response ->  {
+                                            if (response.equals("success")) {
+                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success")));
+                                            } else {
+                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+                                            }
+                                        });
+
+                            } else {
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+                            }
+                        } ));
+    }
+
+
 
     private Mono<ResponseEntity> sendEmailToSupervisor(Employee emp) {
         return this.employeeService.getEmployee(emp.getEmployeeId())
@@ -324,6 +521,18 @@ public class EmployeeProfileHelper {
     private boolean hasDecimal(float in) {
         BigDecimal bigDecimal = new BigDecimal(String.valueOf(in));
         return in > (float) bigDecimal.intValue();
+
+    }
+
+    private void setAddress(Address address, Forms.ProfileEditForm form, long employeeId) {
+        var formAddress = form.address;
+        address.setCity(formAddress.getCity());
+        address.setCountry(formAddress.getCountry());
+        address.setStreet(formAddress.getStreet());
+        address.setProvince(formAddress.getProvince());
+        address.setPostalCode(formAddress.getPostalCode());
+        if (address.getEmployeeId() == null)
+            address.setEmployeeId(employeeId);
 
     }
 

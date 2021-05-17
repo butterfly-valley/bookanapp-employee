@@ -15,7 +15,7 @@ import java.time.LocalTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TimeOffRequest implements Persistable<String> {
+public class AbsenceRequest implements Persistable<String> {
 
     @Id
     private String id;

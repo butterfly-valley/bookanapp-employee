@@ -15,8 +15,8 @@ import java.util.Objects;
 @NoArgsConstructor
 public class Phone {
 
-//    @Id
-//    private long id;
+    @Id
+    private long id;
     private Long employeeId;
 
     private PhoneType phoneType;
@@ -29,6 +29,13 @@ public class Phone {
         if (o == null || getClass() != o.getClass()) return false;
         Phone that = (Phone) o;
         return Objects.equals(code, that.code) && Objects.equals(number, that.number);
+    }
+
+    public Phone(Long employeeId, PhoneType phoneType, String code, String number) {
+        this.employeeId = employeeId;
+        this.phoneType = phoneType;
+        this.code = code;
+        this.number = number;
     }
 
     @Override

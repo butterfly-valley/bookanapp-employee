@@ -3,6 +3,7 @@ package com.bookanapp.employee.entities;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 
 @Data
 @AllArgsConstructor
@@ -15,9 +16,4 @@ public class FamilyMember {
     private int kinship;
     private String name;
 
-    public enum Kinship{
-        SPOUSE,
-        PARTNER,
-        CHILD
-    }
 }

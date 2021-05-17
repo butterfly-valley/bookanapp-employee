@@ -10,14 +10,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.codec.multipart.FilePart;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.reactive.function.BodyInserters;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -559,9 +553,9 @@ public class EmployeeHelper {
 
     private Mono<TimeOffBalance> saveTimeOffBalance(long employeeId, EmployeeEntity.TimeOffEntity timeOffBalance) {
         TimeOffBalance balance = new TimeOffBalance(employeeId, 0,0,0,0,0,0);
-        Mono<TimeOffBalance> newBalance = this.employeeService.saveTimeOff(balance);
+        Mono<TimeOffBalance> newBalance = this.employeeService.saveTimeOffBalance(balance);
 
-        return this.employeeService.getTimeOff(employeeId)
+        return this.employeeService.getTimeOffBalance(employeeId)
                 .switchIfEmpty(Mono.defer(() -> newBalance))
                 .flatMap(timeOff -> {
                     if (timeOffBalance != null) {
@@ -571,7 +565,7 @@ public class EmployeeHelper {
                         timeOff.setComplimentaryBankHolidayRolloverDays(timeOffBalance.getComplimentaryBankHolidayRolloverDays());
                         timeOff.setCompensationDays(timeOffBalance.getCompensationDays());
                         timeOff.setCompensationRolloverDays(timeOffBalance.getCompensationRolloverDays());
-                        return this.employeeService.saveTimeOff(timeOff);
+                        return this.employeeService.saveTimeOffBalance(timeOff);
                     } else {
                         return Mono.just(timeOff);
                     }
@@ -642,7 +636,7 @@ public class EmployeeHelper {
         } else {
             return this.employeeService.saveEmployee(emp)
                     .flatMap(e -> this.employeeService.getEmployeeByUsername(e.getProviderId(), e.getUsername()))
-                    .flatMap(employee -> this.employeeService.saveTimeOff(emp.getTimeOffBalance()))
+                    .flatMap(employee -> this.employeeService.saveTimeOffBalance(emp.getTimeOffBalance()))
                     .flatMap(timeOff -> {
                         List<AuthorizedSchedule> authorizedSchedules = new ArrayList<>();
                         emp.getAuthorizedSchedules().forEach(authorizedSchedule -> authorizedSchedules.add(new AuthorizedSchedule(emp.getEmployeeId(), authorizedSchedule)));
@@ -987,7 +981,7 @@ public class EmployeeHelper {
                                     })
                                     .switchIfEmpty(Mono.just(employee))
                             )
-                            .flatMap(employee -> this.employeeService.getTimeOff(employeeId)
+                            .flatMap(employee -> this.employeeService.getTimeOffBalance(employeeId)
                                     .flatMap(timeOffBalance -> {
                                         employee.setTimeOffBalance(timeOffBalance);
                                         return Mono.just(employee);
