@@ -4,7 +4,6 @@ import com.bookanapp.employee.entities.*;
 import com.bookanapp.employee.entities.AuthorizedRoster;
 import com.bookanapp.employee.repositories.*;
 import lombok.RequiredArgsConstructor;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -20,7 +19,7 @@ public class EmployeeService {
     private final SubdivisionRepository subdivisionRepository;
     private final TimeOffBalanceRepository timeOffBalanceRepository;
     private final EmployeePhoneRepository employeePhoneRepository;
-    private final EmployeeFamilyRepository employeeFamilyRepository;
+    private final FamilyRepository familyRepository;
     private final EmployeeAddressRepository employeeAddressRepository;
     private final AuthorizedScheduleRepository authorizedScheduleRepository;
     private final AuthorizedRosterRepository authorizedRosterRepository;
@@ -94,18 +93,34 @@ public class EmployeeService {
 
 
     public Mono<List<FamilyMember>> getFamily(long employeeId) {
-        return this.employeeFamilyRepository.getAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+        return this.familyRepository.getAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
 
     public Mono<List<FamilyMember>> saveFamily(List<FamilyMember> familyMembers) {
-        return this.employeeFamilyRepository.saveAll(familyMembers).collectList();
+        return this.familyRepository.saveAll(familyMembers).collectList();
     }
 
     public Mono<Void> deleteFamily(List<FamilyMember> familyMembers) {
-        return this.employeeFamilyRepository.deleteAll(familyMembers);
+        return this.familyRepository.deleteAll(familyMembers);
     }
     public Mono<List<Phone>> getPhones(long employeeId) {
         return this.employeePhoneRepository.getAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+    public Mono<Phone> getPhone(long phoneId) {
+        return this.employeePhoneRepository.findById(phoneId);
+    }
+
+    public Mono<FamilyMember> getFamilyMember(long memberId) {
+        return this.familyRepository.findById(memberId);
+    }
+
+    public Mono<Void> deletePhone(Phone phone) {
+        return this.employeePhoneRepository.delete(phone);
+    }
+
+    public Mono<Void> deleteFamilyMember(FamilyMember member) {
+        return this.familyRepository.delete(member);
     }
 
     public Mono<List<Phone>> savePhones(List<Phone> phones) {

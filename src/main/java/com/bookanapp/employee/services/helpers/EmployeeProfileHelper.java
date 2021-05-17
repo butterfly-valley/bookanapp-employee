@@ -465,6 +465,34 @@ public class EmployeeProfileHelper {
                         } ));
     }
 
+    public Mono<ResponseEntity> deletePhone(long id) {
+        return this.commonHelper.getCurrentEmployee()
+                .flatMap(employee -> this.employeeService.getPhone(id)
+                .flatMap(phone -> {
+                    if (phone.getEmployeeId().equals(employee.getEmployeeId())) {
+                        return this.employeeService.deletePhone(phone)
+                                .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+
+                    } else {
+                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidPhone")));
+                    }
+                }));
+    }
+
+    public Mono<ResponseEntity> deleteFamilyMember(long id) {
+        return this.commonHelper.getCurrentEmployee()
+                .flatMap(employee -> this.employeeService.getFamilyMember(id)
+                        .flatMap(member -> {
+                            if (member.getEmployeeId().equals(employee.getEmployeeId())) {
+                                return this.employeeService.deleteFamilyMember(member)
+                                        .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+
+                            } else {
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidMember")));
+                            }
+                        }));
+    }
+
 
 
     private Mono<ResponseEntity> sendEmailToSupervisor(Employee emp) {
