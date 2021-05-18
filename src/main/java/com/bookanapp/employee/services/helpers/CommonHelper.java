@@ -90,6 +90,17 @@ public class CommonHelper {
 
     }
 
+    public Mono<Provider> fetchCurrentProvider() {
+
+        return this.getCurrentProviderId()
+                .flatMap(providerId -> {
+                    var client = this.buildAPIAccessWebClient(this.providerServiceUrl + "/provider/get/" + providerId);
+                    return client.get()
+                            .retrieve()
+                            .bodyToMono(Provider.class);
+                });
+
+    }
     public WebClient buildAPIAccessWebClient(String url) {
         return WebClient.builder()
                 .baseUrl(url)

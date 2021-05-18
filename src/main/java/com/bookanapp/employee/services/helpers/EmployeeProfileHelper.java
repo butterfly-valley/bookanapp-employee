@@ -60,7 +60,7 @@ public class EmployeeProfileHelper {
                         .switchIfEmpty(Mono.just(employee))
                 )
                 .flatMap(employee -> {
-                            if (employee.getSubdivision() != null) {
+                            if (employee.getSubdivisionId() != null) {
                                 return this.employeeService.getSubdivision(employee.getSubdivisionId())
                                         .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
                                                 .flatMap(division -> {

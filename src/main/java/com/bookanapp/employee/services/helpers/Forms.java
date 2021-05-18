@@ -1,9 +1,6 @@
 package com.bookanapp.employee.services.helpers;
 
-import com.bookanapp.employee.entities.Address;
-import com.bookanapp.employee.entities.Employee;
-import com.bookanapp.employee.entities.FamilyMember;
-import com.bookanapp.employee.entities.Phone;
+import com.bookanapp.employee.entities.*;
 import com.bookanapp.employee.entities.rest.EmployeeAuthority;
 import com.bookanapp.employee.entities.rest.EmployeeEntity;
 import com.bookanapp.employee.entities.rest.Provider;
@@ -235,6 +232,48 @@ public class Forms {
         String countryCode;
         String dialCode;
         String id;
+    }
+
+    @Data
+    public static class RosterSuperForm {
+        @NotNull
+        Roster schedule;
+        String pattern;
+        RosterDay.RosterDaySchedule.RosterDayScheduleHour patternStart;
+        RosterDay.RosterDaySchedule.RosterDayScheduleHour patternEnd;
+        @Size(max = 36)
+        String color;
+        String note;
+        @Size(max = 30)
+        String colorName;
+        boolean publish;
+    }
+
+    @Data
+    static class Roster{
+        @NotBlank
+        String startDate;
+        @NotBlank
+        String endDate;
+        @NotNull
+        RosterDays days;
+
+    }
+
+    @Data
+    static class RosterDays{
+        @NotNull
+        Set<RosterDay> day;
+
+    }
+
+
+    @EqualsAndHashCode(callSuper = true)
+    @Data
+    public static class RosterForm extends RosterSuperForm{
+        @NotBlank
+        String employeeId;
+        String patternName;
     }
 
 

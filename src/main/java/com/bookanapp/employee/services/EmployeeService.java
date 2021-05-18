@@ -118,6 +118,10 @@ public class EmployeeService {
                 .collectList();
     }
 
+    public Mono<List<Employee>> findEmployeesBySubdivision(long subdivisionId) {
+        return this.employeeRepository.getAllBySubdivisionId(subdivisionId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
     public Mono<TimeOffBalance> getTimeOffBalance(long id) {
         return this.timeOffBalanceRepository.getByEmployeeId(id);
     }
