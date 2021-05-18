@@ -38,6 +38,11 @@ public class EmployeeEntity {
     private String taxPayerId;
     private String personalEmail;
 
+    public EmployeeEntity(long id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

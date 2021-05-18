@@ -54,15 +54,15 @@ public class EmployeeProfileController {
     @PostMapping(value = "/edit")
     public Mono<? extends ResponseEntity> editProfileInfo(@RequestBody @Valid Mono<Forms.ProfileEditForm> profileEditFormMono) {
         return profileEditFormMono
-                .flatMap(this.employeeProfileHelper::editProfile);
-//                .onErrorResume(e -> {
-//                    if (e instanceof WebExchangeBindException) {
-//                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
-//                    } else {
-//                        log.error("Error editing profile, error: " + e.getMessage());
-//                        return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
-//                    }
-//                });
+                .flatMap(this.employeeProfileHelper::editProfile)
+                .onErrorResume(e -> {
+                    if (e instanceof WebExchangeBindException) {
+                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+                    } else {
+                        log.error("Error editing profile, error: " + e.getMessage());
+                        return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                    }
+                });
 
     }
 

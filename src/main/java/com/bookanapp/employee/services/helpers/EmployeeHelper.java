@@ -872,7 +872,7 @@ public class EmployeeHelper {
 
     }
 
-    private Mono<EmployeeEntity> buildEmployeeEntity(Employee employee) {
+    public Mono<EmployeeEntity> buildEmployeeEntity(Employee employee) {
 
         List<Long> schedules = new ArrayList<>();
 
@@ -944,7 +944,7 @@ public class EmployeeHelper {
 
     }
 
-    private Mono<Employee> loadEmployee(long employeeId) {
+    public Mono<Employee> loadEmployee(long employeeId) {
 
         var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/authorities/" + employeeId);
 

@@ -8,4 +8,5 @@ import reactor.core.publisher.Mono;
 public interface DivisionRepository extends ReactiveCrudRepository<Division, Long> {
     Flux<Division> findAllByProviderId(long providerId);
     Mono<Division> findByProviderIdAndName(long providerId, String name);
+    Flux<Division> findAllByProviderIdAndNameIgnoreCaseContaining(long providerId, String term);
 }

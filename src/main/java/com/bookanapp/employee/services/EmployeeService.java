@@ -5,6 +5,7 @@ import com.bookanapp.employee.entities.AuthorizedRoster;
 import com.bookanapp.employee.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -74,6 +75,47 @@ public class EmployeeService {
 
     public Mono<List<Employee>> getAllEmployeesByName(long providerId, String term) {
         return this.employeeRepository.getAllByProviderIdAndNameContaining(providerId, term).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+    public Mono<List<Employee>> searchAllEmployeesByName(long providerId, String term) {
+        return this.employeeRepository.getAllByProviderIdAndNameContaining(providerId, term).collectList()
+                .switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+    public Mono<List<Employee>> findAllDivisionEmployeesByName(long providerId, String term) {
+        return this.divisionRepository.findAllByProviderIdAndNameIgnoreCaseContaining(providerId, term).collectList()
+                .flatMap(divisions -> Flux.fromIterable(divisions)
+                        .flatMap(division -> this.getSubdivisions(division.getDivisionId())
+                                .flatMap(this::findAllSubdivisionEmployees)
+                        )
+                        .collectList()
+                        .flatMap(lists -> {
+                            List<Employee> employees = new ArrayList<>();
+                            lists.forEach(employees::addAll);
+                            return Mono.just(employees);
+                        }))
+                .switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+    public Mono<List<Employee>> findAllSubdivisionEmployeesByName(long providerId, String term) {
+        return this.divisionRepository.findAllByProviderId(providerId).collectList()
+                .flatMap(divisions -> Flux.fromIterable(divisions)
+                        .flatMap(division -> this.subdivisionRepository.findAllByDivisionIdAndNameIgnoreCaseContaining(division.getDivisionId(), term).collectList()
+                                .flatMap(this::findAllSubdivisionEmployees)
+                        )
+                        .collectList()
+                        .flatMap(lists -> {
+                            List<Employee> employees = new ArrayList<>();
+                            lists.forEach(employees::addAll);
+                            return Mono.just(employees);
+                        }));
+    }
+
+
+    public Mono<List<Employee>> findAllSubdivisionEmployees(List<Subdivision> subdivisions) {
+        return Flux.fromIterable(subdivisions)
+                .flatMap(subdivision -> this.employeeRepository.getAllBySubdivisionId(subdivision.getSubdivisionId()))
+                .collectList();
     }
 
     public Mono<TimeOffBalance> getTimeOffBalance(long id) {
