@@ -129,6 +129,26 @@ public class EmployeeProfileController {
 
     }
 
+    @GetMapping(value = "/get/time/attachment/{requestId}")
+    public Mono<? extends ResponseEntity> downloadAttachment( @PathVariable("requestId") String requestId, @RequestParam("key") String key) {
+        return this.employeeProfileHelper.downloadAttachment(requestId, key)
+                .onErrorResume(e -> {
+                    log.error("Error saving attachment for absence request: " + requestId + ", error: " + e.getMessage());
+                    return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(null, "imageUploadError")));
+                });
+
+    }
+
+    @GetMapping(value = "/delete/time/attachment/{requestId}")
+    public Mono<? extends ResponseEntity> deleteAttachment( @PathVariable("requestId") String requestId, @RequestParam("key") String key) {
+        return this.employeeProfileHelper.deleteAttachment(requestId, key)
+                .onErrorResume(e -> {
+                    log.error("Error saving attachment for absence request: " + requestId + ", error: " + e.getMessage());
+                    return Mono.just(ResponseEntity.ok(new Forms.FileUploadResponse(null, "imageUploadError")));
+                });
+
+    }
+
 
     @GetMapping(value = "/delete/phone/{id}")
     public Mono<? extends ResponseEntity> deletePhone( @PathVariable("id") long id) {
