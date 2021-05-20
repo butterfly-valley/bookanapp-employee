@@ -43,18 +43,78 @@ public class RosterHelper {
 
     }
 
-    public Mono<ResponseEntity> displayRoster(String start, String end, String offset, Long employeeId, Long subdivisionId, Long divisionId, String all, String showTimeOff) {
+    public Mono<ResponseEntity> displayRoster(String start, String end, String offset, Long employeeId, String subdivisionId, String divisionId, String all, String showTimeOff) {
         return this.commonHelper.getCurrentProviderId()
                 .flatMap(providerId ->  {
                     List<LocalDate> dateRange = this.dateRange.dateRangeUTC(start, end, offset);
-                    Set<Long> employeeIds = new HashSet<>();
-                    List<RosterEntity> entities = new ArrayList<>();
                     boolean timeOff = showTimeOff != null;
 
-                    if (employeeId != null)
-                        employeeIds.add(employeeId);
+                    Mono<List<RosterEntity>> slotEntities = null;
 
-                })
+                    if (employeeId != null)
+                        slotEntities = this.getEmployeeRoster(employeeId, dateRange, timeOff);
+
+                    if (subdivisionId != null && !subdivisionId.equals("null")) {
+                        if (!timeOff) {
+                            slotEntities = this.getSubdivisionRoster(Long.parseLong(subdivisionId), dateRange, providerId);
+                        } else {
+                            slotEntities = this.getSubDivisionEmployees(Long.parseLong(subdivisionId), providerId)
+                                    .flatMap(employees -> Flux.fromIterable(employees)
+                                            .flatMap(employee -> this.getEmployeeRoster(employee.getEmployeeId(), dateRange, true))
+                                            .collectList()
+                                            .flatMap(lists -> {
+                                                List<RosterEntity> entities = new ArrayList<>();
+                                                lists.forEach(entities::addAll);
+                                                return Mono.just(entities);
+                                            }));
+
+                        }
+                    }
+                    if (divisionId != null && !divisionId.equals("null")) {
+                        slotEntities = this.employeeService.getDivision(Long.parseLong(divisionId))
+                                .flatMap(division -> {
+                                    if (division.getProviderId() == providerId) {
+                                        return this.employeeService.getSubdivisions(division.getDivisionId())
+                                                .flatMap(subdivisions -> Flux.fromIterable(subdivisions)
+                                                        .flatMap(subdivision -> this.getSubDivisionEmployees(subdivision.getSubdivisionId(), providerId)
+                                                                .flatMap(employees -> Flux.fromIterable(employees)
+                                                                        .flatMap(employee -> this.getEmployeeRoster(employee.getEmployeeId(), dateRange, timeOff))
+                                                                        .collectList()
+                                                                )
+                                                        )
+                                                        .collectList()
+                                                        .flatMap(lists -> {
+                                                            List<RosterEntity> entities = new ArrayList<>();
+                                                            lists.forEach(subLists -> {
+                                                                subLists.forEach(entities::addAll);
+                                                            });
+                                                            return Mono.just(entities);
+                                                        }));
+
+                                    } else {
+                                        return Mono.just(new ArrayList<>());
+                                    }
+                                });
+                    }
+
+                    if (all != null){
+                        slotEntities = this.employeeService.getAllEmployees(providerId)
+                                .flatMap(employees -> Flux.fromIterable(employees)
+                                        .flatMap(employee -> this.getEmployeeRoster(employee.getEmployeeId(), dateRange, true))
+                                        .collectList()
+                                        .flatMap(lists -> {
+                                            List<RosterEntity> entities = new ArrayList<>();
+                                            lists.forEach(entities::addAll);
+                                            return Mono.just(entities);
+                                        }));
+                    }
+
+                    if (slotEntities != null) {
+                        return Mono.just(ResponseEntity.ok(slotEntities));
+                    } else {
+                        return Mono.just(ResponseEntity.ok(new ArrayList<>()));
+                    }
+                });
     }
 
     public Mono<ResponseEntity> findEmployeeByName(String term) {
@@ -62,6 +122,79 @@ public class RosterHelper {
                 .flatMap(providerId -> this.commonHelper.getCurrentEmployee()
                         .flatMap(employee -> returnSearchedEmployees(providerId, term, employee.getEmployeeId()))
                         .switchIfEmpty(returnSearchedEmployees(providerId, term, null)));
+    }
+
+
+    private Mono<List<RosterEntity>> getEmployeeRoster(long employeeId, List<LocalDate> dateRange, boolean showTimeOff) {
+
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> this.employeeService.getEmployee(employeeId)
+                        .flatMap(employee -> {
+                            if (employee.getProviderId() == providerId) {
+
+                                return Flux.fromIterable(dateRange)
+                                        .flatMap(date -> this.rosterService.getRosterSlotsByDate(employeeId, date)
+                                                .flatMap(dateSlots -> {
+                                                    List<RosterEntity> entities = new ArrayList<>();
+                                                    dateSlots.forEach(
+                                                            slot -> {
+                                                                if (!showTimeOff) {
+                                                                    entities.add(new RosterEntity(slot));
+                                                                } else {
+                                                                    if (slot.isTimeOff())
+                                                                        entities.add(new RosterEntity(slot, "", employee));
+                                                                }
+                                                            }
+                                                    );
+
+                                                    return Mono.just(entities);
+                                                })
+                                        )
+                                        .collectList()
+                                        .flatMap(lists -> {
+                                            List<RosterEntity> entities = new ArrayList<>();
+                                            lists.forEach(entities::addAll);
+                                            return Mono.just(entities);
+                                        });
+
+                            } else {
+                                return Mono.just(new ArrayList<>());
+                            }
+                        })
+                );
+
+    }
+
+    private Mono<List<RosterEntity>> getSubdivisionRoster(long subdivisionId, List<LocalDate> dateRange, Long providerId) {
+        return this.employeeService.getSubdivision(subdivisionId)
+                .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                        .flatMap(division -> {
+                                    if (division.getProviderId() == providerId) {
+                                        dateRange.removeIf(e -> e.isBefore(LocalDate.now().minusDays(90L)));
+                                        return Flux.fromIterable(dateRange)
+                                                .flatMap(date -> this.rosterService.findSubdivisionRosterSlots(subdivisionId, date)
+                                                        .flatMap(dateSlots -> {
+                                                            List<RosterEntity> entities = new ArrayList<>();
+                                                            dateSlots.forEach(
+                                                                    slot -> entities.add(new RosterEntity(slot))
+                                                            );
+
+                                                            return Mono.just(entities);
+                                                        })
+                                                )
+                                                .collectList()
+                                                .flatMap(lists -> {
+                                                    List<RosterEntity> entities = new ArrayList<>();
+                                                    lists.forEach(entities::addAll);
+                                                    return Mono.just(entities);
+                                                });
+                                    } else {
+                                        return Mono.just(new ArrayList<>());
+                                    }
+                                }
+
+                        ));
+
     }
 
     private Mono<ResponseEntity> returnSearchedEmployees(long providerId, String term, Long employeeId) {
@@ -193,6 +326,20 @@ public class RosterHelper {
                                     patternsAndColors.add(colors);
                                     return Mono.just(ResponseEntity.ok(patternsAndColors));
                                 })
+                        )
+                );
+    }
+
+    private Mono<List<Employee>> getSubDivisionEmployees(long subdivisionId, long providerId) {
+        return this.employeeService.getSubdivision(subdivisionId)
+                .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                        .flatMap(division -> {
+                                    if (division.getProviderId() == providerId) {
+                                        return this.employeeService.findEmployeesBySubdivision(subdivisionId);
+                                    } else {
+                                        return Mono.just(new ArrayList<>());
+                                    }
+                                }
                         )
                 );
     }
@@ -363,17 +510,7 @@ public class RosterHelper {
                         return Mono.just(employees);
                     });
         } else if (subdivisionId != null){
-            return this.employeeService.getSubdivision(subdivisionId)
-                    .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
-                            .flatMap(division -> {
-                                        if (division.getProviderId() == providerId ) {
-                                            return this.employeeService.findEmployeesBySubdivision(subdivisionId);
-                                        } else {
-                                            return Mono.just(new ArrayList<>());
-                                        }
-                                    }
-                            )
-                    );
+            return getSubDivisionEmployees(subdivisionId, providerId);
 
         } else if (divisionId != null){
             return this.employeeService.getDivision(divisionId)

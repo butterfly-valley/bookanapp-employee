@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +23,11 @@ public class RosterService {
     public Mono<List<EmployeeRosterSlot>> getRosterSlots(long employeeId) {
         return this.rosterSlotRepository.findAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
+
+    public Mono<List<EmployeeRosterSlot>> getRosterSlotsByDate(long employeeId, LocalDate date) {
+        return this.rosterSlotRepository.findAllByEmployeeIdAndDate(employeeId, date).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
 
     public Mono<List<EmployeeRosterSlot>> saveRosterSlots(List<EmployeeRosterSlot> slots) {
         return this.rosterSlotRepository.saveAll(slots).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
@@ -45,6 +51,11 @@ public class RosterService {
     public Mono<List<SubdivisionRosterSlot>> saveSubdivisionRosterSlots(List<SubdivisionRosterSlot> slots){
         return this.subdivisionRosterSlotRepository.saveAll(slots).collectList();
     }
+
+    public Mono<List<SubdivisionRosterSlot>> findSubdivisionRosterSlots(long id, LocalDate date){
+        return this.subdivisionRosterSlotRepository.findAllBySubdivisionIdAndDate(id, date).collectList();
+    }
+
 
     public Mono<RosterPattern> savePattern(RosterPattern pattern){
         return this.rosterPatternRepository.save(pattern);

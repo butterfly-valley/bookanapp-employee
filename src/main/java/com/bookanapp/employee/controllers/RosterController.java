@@ -62,13 +62,13 @@ public class RosterController {
                                            @RequestParam("end") String end,
                                            @RequestParam("offset") String offset,
                                            @RequestParam(value = "employeeId", required = false) Long employeeId,
-                                           @RequestParam(value = "subdivisionId", required = false) Long subdivisionId,
-                                           @RequestParam(value = "divisionId", required = false) Long divisionId,
+                                           @RequestParam(value = "subdivisionId", required = false) String subdivisionId,
+                                           @RequestParam(value = "divisionId", required = false) String divisionId,
                                            @RequestParam(value = "all", required = false) String all,
                                            @RequestParam(value = "showTimeOff", required = false) String showTimeOff) {
         return this.rosterHelper.displayRoster(start, end, offset, employeeId, subdivisionId, divisionId, all, showTimeOff)
                 .onErrorResume(e -> {
-                    log.error("Error displaying employees, error: " + e.getMessage());
+                    log.error("Error displaying roster, error: " + e.getMessage());
                     return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
                 });
 
