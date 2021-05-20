@@ -84,6 +84,8 @@ public class RosterController {
 
     }
 
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
     @PostMapping("/upload")
     public Mono<? extends ResponseEntity> uploadRoster(@RequestBody @Valid Mono<Forms.RosterForm> rosterFormMono) {
         return rosterFormMono
@@ -91,6 +93,8 @@ public class RosterController {
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error uploading employee roster", "uploadRosterError"));
     }
 
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
     @PostMapping("/upload/subdivision")
     public Mono<? extends ResponseEntity> uploadSubdivisionRoster(@RequestBody @Valid Mono<Forms.SubdivisionRosterForm> rosterFormMono) {
         return rosterFormMono
@@ -98,6 +102,8 @@ public class RosterController {
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error uploading subdivision roster", "uploadRosterError"));
     }
 
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
     @PostMapping("/update/slot")
     public Mono<? extends ResponseEntity> updateRosterSlot(@RequestBody @Valid Mono<Forms.RosterSlotForm> rosterFormMono) {
         return rosterFormMono
