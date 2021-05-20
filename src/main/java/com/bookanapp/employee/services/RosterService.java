@@ -25,7 +25,7 @@ public class RosterService {
     }
 
     public Mono<List<EmployeeRosterSlot>> getRosterSlotsByDate(long employeeId, LocalDate date) {
-        return this.rosterSlotRepository.findAllByEmployeeIdAndDate(employeeId, date).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+        return this.rosterSlotRepository.findAllByEmployeeIdAndDate(employeeId, date).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>()))).retry(3);
     }
 
 

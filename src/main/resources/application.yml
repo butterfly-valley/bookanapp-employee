@@ -8,15 +8,15 @@ spring:
   r2dbc:
     pool:
       initial-size: 10
-      max-size: 30
+      max-size: 200
       max-idle-time: 15s
       validation-query: SELECT 1
     properties:
-      connect-timeout: 10
+      connect-timeout: 3s
       ssl: false
-      max-create-connection-time: 3
-      max-acquire-time: 5
-      max-life-time: 15
+      max-create-connection-time: 3s
+      max-acquire-time: 5s
+      max-life-time: 15s
 server:
   port: 8087
   error:

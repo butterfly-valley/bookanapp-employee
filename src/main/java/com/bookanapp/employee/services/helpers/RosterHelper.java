@@ -8,6 +8,7 @@ import com.bookanapp.employee.services.DateRangeService;
 import com.bookanapp.employee.services.EmployeeService;
 import com.bookanapp.employee.services.RosterService;
 import lombok.RequiredArgsConstructor;
+import org.apache.logging.log4j.util.PropertySource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -127,41 +128,45 @@ public class RosterHelper {
 
     private Mono<List<RosterEntity>> getEmployeeRoster(long employeeId, List<LocalDate> dateRange, boolean showTimeOff) {
 
-        return this.commonHelper.getCurrentProviderId()
-                .flatMap(providerId -> this.employeeService.getEmployee(employeeId)
-                        .flatMap(employee -> {
-                            if (employee.getProviderId() == providerId) {
+        if (dateRange.size()<40) {
+            return this.commonHelper.getCurrentProviderId()
+                    .flatMap(providerId -> this.employeeService.getEmployee(employeeId)
+                            .flatMap(employee -> {
+                                if (employee.getProviderId() == providerId) {
 
-                                return Flux.fromIterable(dateRange)
-                                        .flatMap(date -> this.rosterService.getRosterSlotsByDate(employeeId, date)
-                                                .flatMap(dateSlots -> {
-                                                    List<RosterEntity> entities = new ArrayList<>();
-                                                    dateSlots.forEach(
-                                                            slot -> {
-                                                                if (!showTimeOff) {
-                                                                    entities.add(new RosterEntity(slot));
-                                                                } else {
-                                                                    if (slot.isTimeOff())
-                                                                        entities.add(new RosterEntity(slot, "", employee));
+                                    return Flux.fromIterable(dateRange)
+                                            .flatMap(date -> this.rosterService.getRosterSlotsByDate(employeeId, date)
+                                                    .flatMap(dateSlots -> {
+                                                        List<RosterEntity> entities = new ArrayList<>();
+                                                        dateSlots.forEach(
+                                                                slot -> {
+                                                                    if (!showTimeOff) {
+                                                                        entities.add(new RosterEntity(slot));
+                                                                    } else {
+                                                                        if (slot.isTimeOff())
+                                                                            entities.add(new RosterEntity(slot, "", employee));
+                                                                    }
                                                                 }
-                                                            }
-                                                    );
+                                                        );
 
-                                                    return Mono.just(entities);
-                                                })
-                                        )
-                                        .collectList()
-                                        .flatMap(lists -> {
-                                            List<RosterEntity> entities = new ArrayList<>();
-                                            lists.forEach(entities::addAll);
-                                            return Mono.just(entities);
-                                        });
+                                                        return Mono.just(entities);
+                                                    })
+                                            )
+                                            .collectList()
+                                            .flatMap(lists -> {
+                                                List<RosterEntity> entities = new ArrayList<>();
+                                                lists.forEach(entities::addAll);
+                                                return Mono.just(entities);
+                                            });
 
-                            } else {
-                                return Mono.just(new ArrayList<>());
-                            }
-                        })
-                );
+                                } else {
+                                    return Mono.just(new ArrayList<>());
+                                }
+                            })
+                    );
+        } else {
+            return Mono.just(new ArrayList<>());
+        }
 
     }
 
@@ -178,7 +183,6 @@ public class RosterHelper {
                                                             dateSlots.forEach(
                                                                     slot -> entities.add(new RosterEntity(slot))
                                                             );
-
                                                             return Mono.just(entities);
                                                         })
                                                 )
@@ -529,7 +533,7 @@ public class RosterHelper {
     }
 
     private Mono<ResponseEntity<List<EmployeeEntity>>> getEmployeeEntities(List<Employee> employees) {
-        return Flux.fromIterable(employees)
+        return Flux.fromIterable(employees.stream().sorted(Comparator.comparing(Employee::getName)).collect(Collectors.toList()))
                 .flatMap(employee -> {
                     var entity = new EmployeeEntity(employee.getEmployeeId(), employee.getName());
                     if (employee.getSubdivisionId() != null) {
