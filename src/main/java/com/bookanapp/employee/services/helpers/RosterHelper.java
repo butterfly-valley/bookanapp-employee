@@ -319,6 +319,103 @@ public class RosterHelper {
 
     }
 
+    public Mono<ResponseEntity> uploadSubdivisionRoster(Forms.SubdivisionRosterForm rosterForm) {
+        return this.commonHelper.fetchCurrentProvider()
+                .flatMap(provider -> this.employeeService.getSubdivision(rosterForm.subdivisionId)
+                        .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                                .flatMap(division -> {
+                                    if (division.getProviderId() == provider.getId()) {
+                                        List<LocalDate> interval = dateRange.dateRange(rosterForm.schedule.startDate, rosterForm.schedule.endDate, false);
+                                        List<SubdivisionRosterSlot> slots = new ArrayList<>();
+
+                                        String start;
+                                        String end;
+
+                                        if (rosterForm.schedule.days.day.size()>0) {
+
+                                        } else {
+                                            // calculate pattern
+                                            if (rosterForm.pattern != null && rosterForm.pattern.length()>2) {
+
+                                                interval = dateRange.rosterPatternDateRange(interval, rosterForm.pattern);
+
+                                            } else {
+                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+                                            }
+
+                                        }
+
+
+
+                                        for (LocalDate date : interval) {
+                                            if (rosterForm.schedule.days.day.size() > 0) {
+                                                for (Forms.RosterDay weekday : rosterForm.schedule.days.day) {
+                                                    if (date.isAfter(LocalDate.now().minusDays(1)) && date.getDayOfWeek().toString().equals(weekday.weekday)) {
+                                                        LocalTime initialEndTime = null;
+                                                        for (Forms.RosterDay.RosterDaySchedule daySchedule : weekday.schedule) {
+
+                                                            start = dateRange.addZeroBeforeInt(daySchedule.start.hour) + ":" + dateRange.addZeroBeforeInt(daySchedule.start.minute);
+                                                            end =  dateRange.addZeroBeforeInt(daySchedule.end.hour) + ":" + dateRange.addZeroBeforeInt(daySchedule.end.minute);
+
+
+                                                            LocalTime scheduleStart = LocalTime.of(daySchedule.start.hour, daySchedule.start.minute);
+                                                            LocalTime scheduleEnd = LocalTime.of(daySchedule.end.hour, daySchedule.end.minute);
+
+                                                            if (scheduleEnd.isBefore(scheduleStart))
+                                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+
+                                                            if (initialEndTime != null && scheduleStart.isBefore(initialEndTime)) {
+                                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+                                                            } else {
+                                                                initialEndTime = scheduleEnd;
+
+                                                            }
+
+                                                            createSubdivisionRosterSlots(rosterForm, provider, null, null, slots, subdivision, start, end, date, scheduleStart, scheduleEnd);
+                                                        }
+                                                    }
+
+                                                }
+
+                                            } else {
+                                                LocalTime initialEndTime = null;
+
+                                                start = dateRange.addZeroBeforeInt(rosterForm.patternStart.hour) + ":" + dateRange.addZeroBeforeInt(rosterForm.patternStart.minute);
+                                                end = dateRange.addZeroBeforeInt(rosterForm.patternEnd.hour) + ":" + dateRange.addZeroBeforeInt(rosterForm.patternEnd.minute);
+
+
+                                                LocalTime scheduleStart = LocalTime.parse(start, DateTimeFormatter.ofPattern("H:mm"));
+                                                LocalTime scheduleEnd = LocalTime.parse(end, DateTimeFormatter.ofPattern("H:mm"));
+
+                                                if (scheduleEnd.isBefore(scheduleStart))
+                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+
+                                                if (initialEndTime != null && scheduleStart.isBefore(initialEndTime)) {
+                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+                                                } else {
+                                                    initialEndTime = scheduleEnd;
+
+                                                }
+
+                                                createSubdivisionRosterSlots(rosterForm, provider, null, null, slots, subdivision, start, end, date, scheduleStart, scheduleEnd);
+                                            }
+
+
+                                        }
+
+                                        return this.rosterService.saveSubdivisionRosterSlots(slots)
+                                                .then(this.saveNewColor(rosterForm, provider.getId()))
+                                                .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+
+                                    } else {
+                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
+
+                                    }
+                                })));
+
+    }
+
+
 
     public Mono<ResponseEntity> getRosterPatternsAndColors(){
         return this.commonHelper.getCurrentProviderId()
@@ -457,6 +554,14 @@ public class RosterHelper {
 
     }
 
+    private void createSubdivisionRosterSlots(Forms.SubdivisionRosterForm rosterForm, Provider provider, Employee employee, List<EmployeeRosterSlot> slots, List<SubdivisionRosterSlot> subdivisionSlots, Subdivision subdivision, String start, String end, LocalDate date, LocalTime scheduleStart, LocalTime scheduleEnd) {
+        long durationInMinutes = scheduleStart.until(scheduleEnd, ChronoUnit.MINUTES);
+        String duration = LocalTime.MIN.plus(Duration.ofMinutes(durationInMinutes)).toString();
+        List<LocalTime> hours = dateRange.addHour(start, end, duration, "1", provider);
+        this.createSlots(rosterForm, employee, subdivision, slots, subdivisionSlots, date, durationInMinutes, hours);
+
+    }
+
     private Mono<String> saveNewPattern(Forms.RosterForm rosterForm, long providerId){
         if (rosterForm.patternName != null && rosterForm.patternName.length()>1) {
 
@@ -487,7 +592,7 @@ public class RosterHelper {
         }
     }
 
-    private Mono<String> saveNewColor(Forms.RosterForm rosterForm, long providerId){
+    private Mono<String> saveNewColor(Forms.RosterSuperForm rosterForm, long providerId){
         if (rosterForm.colorName != null) {
             RosterSlotColor rosterSlotColor = new RosterSlotColor(providerId, rosterForm.colorName, rosterForm.color);
             return this.rosterService.getColors(providerId)

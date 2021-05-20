@@ -276,5 +276,12 @@ public class Forms {
         String patternName;
     }
 
+    @EqualsAndHashCode(callSuper = true)
+    @Data
+    public static class SubdivisionRosterForm extends RosterSuperForm{
+        @NotNull
+        Long subdivisionId;
+    }
+
 
 }

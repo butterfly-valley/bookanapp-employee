@@ -85,10 +85,17 @@ public class RosterController {
     }
 
     @PostMapping("/upload")
-    public Mono<? extends ResponseEntity> submitAbsence(@RequestBody @Valid Mono<Forms.RosterForm> rosterFormMono) {
+    public Mono<? extends ResponseEntity> uploadRoster(@RequestBody @Valid Mono<Forms.RosterForm> rosterFormMono) {
         return rosterFormMono
                 .flatMap(this.rosterHelper::uploadRoster)
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error uploading employee roster", "error"));
+    }
+
+    @PostMapping("/upload/subdivision")
+    public Mono<? extends ResponseEntity> uploadSubdivisionRoster(@RequestBody @Valid Mono<Forms.SubdivisionRosterForm> rosterFormMono) {
+        return rosterFormMono
+                .flatMap(this.rosterHelper::uploadSubdivisionRoster);
+//                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error uploading subdivision roster", "error"));
     }
 
     @PreAuthorize("hasAuthority('PROVIDER')" +
