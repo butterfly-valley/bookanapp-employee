@@ -431,6 +431,90 @@ public class RosterHelper {
                 );
     }
 
+    public Mono<ResponseEntity> updateRosterSlot(Forms.RosterSlotForm slotForm){
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> Flux.fromIterable(slotForm.slotDetails)
+                        .flatMap(rosterSlotDetailsForm -> {
+                            Mono<? extends RosterSlot> slotMono = null;
+                            if (rosterSlotDetailsForm.employeeId != null && !rosterSlotDetailsForm.employeeId.equals("0"))
+                                slotMono = this.rosterService.findSlot(Long.parseLong(rosterSlotDetailsForm.slotId));
+
+                            if (rosterSlotDetailsForm.subdivisionId != null && !rosterSlotDetailsForm.subdivisionId.equals("0"))
+                                slotMono = this.rosterService.findSubdivisionRosterSlot(Long.parseLong(rosterSlotDetailsForm.slotId));
+
+                            if (slotForm == null)
+                                return Mono.just("invalidSlot");
+
+                            assert slotMono != null;
+                            return slotMono
+                                    .flatMap(slot -> this.returnInvalidSlotMessage(providerId, slot)
+                                            .flatMap(invalid -> {
+                                                if (invalid) {
+                                                    return Mono.just("invalidSlot");
+                                                } else {
+                                                    if (slotForm.start != null) {
+                                                        LocalTime startTime = LocalTime.of(slotForm.start.hour, slotForm.start.minute);
+                                                        slot.setStart(startTime);
+                                                    }
+
+                                                    if (slotForm.end != null) {
+                                                        LocalTime endTime = LocalTime.of(slotForm.end.hour, slotForm.end.minute);
+                                                        slot.setEnd(endTime);
+
+                                                    }
+
+                                                    if (slotForm.note != null)
+                                                        slot.setNote(slotForm.note);
+
+                                                    if (slotForm.color != null)
+                                                        slot.setColor(slotForm.color);
+
+                                                    if (slot instanceof EmployeeRosterSlot) {
+                                                        return this.rosterService.saveRosterSlot((EmployeeRosterSlot) slot)
+                                                                .then(Mono.just("success"));
+
+                                                    } else if  (slot instanceof SubdivisionRosterSlot) {
+                                                        return this.rosterService.saveSubdivisionRosterSlot((SubdivisionRosterSlot) slot)
+                                                                .then(Mono.just("success"));
+                                                    } else {
+                                                        return Mono.just("error");
+                                                    }
+
+
+                                                }
+                                            })
+
+                                    );
+
+                        })
+                        .collectList()
+                        .flatMap(list -> {
+                            if (list.contains("error")) {
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("error")));
+                            } else if (list.contains("invalidSlot")) {
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidSlot")));
+                            } else {
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success")));
+                            }
+                        })
+
+                );
+    }
+
+    public Mono<Boolean> returnInvalidSlotMessage(long providerId, RosterSlot slot) {
+        if (slot instanceof EmployeeRosterSlot)
+            return this.employeeService.getEmployee(((EmployeeRosterSlot) slot).getEmployeeId())
+                    .flatMap(employee -> Mono.just(employee.getProviderId() != providerId));
+
+        if (slot instanceof SubdivisionRosterSlot)
+            return this.employeeService.getSubdivision(((SubdivisionRosterSlot) slot).getSubdivisionId())
+                    .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                            .flatMap(division -> Mono.just(division.getProviderId() != providerId)));
+
+        return Mono.just(true);
+
+    }
+
     private Mono<List<Employee>> getSubDivisionEmployees(long subdivisionId, long providerId) {
         return this.employeeService.getSubdivision(subdivisionId)
                 .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())

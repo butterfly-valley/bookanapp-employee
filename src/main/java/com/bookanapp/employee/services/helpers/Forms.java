@@ -283,5 +283,23 @@ public class Forms {
         Long subdivisionId;
     }
 
+    @Data
+    public static class RosterSlotForm{
+        @NotNull
+        List<RosterSlotDetailsForm> slotDetails;
+        String note;
+        RosterDay.RosterDaySchedule.RosterDayScheduleHour start;
+        RosterDay.RosterDaySchedule.RosterDayScheduleHour end;
+        String color;
+    }
+
+    @Data
+    static class RosterSlotDetailsForm{
+        @NotBlank
+        String slotId;
+        String subdivisionId;
+        String employeeId;
+    }
+
 
 }
