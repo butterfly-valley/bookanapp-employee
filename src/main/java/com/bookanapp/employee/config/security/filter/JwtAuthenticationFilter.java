@@ -40,7 +40,7 @@ public class JwtAuthenticationFilter implements WebFilter {
         HttpHeaders headers = request.getHeaders();
 
         if(headers.get("Authorization") == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+            return webFilterChain.filter(serverWebExchange);
         } else {
             String jwt = getJwtFromRequest(headers);
 

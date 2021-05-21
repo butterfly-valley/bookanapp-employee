@@ -42,7 +42,7 @@ public class AuthSecurityConfig {
     public SecurityWebFilterChain springSecurityFilterChain (ServerHttpSecurity security) throws Exception {
         security.authorizeExchange().pathMatchers("/api/**").hasAuthority("API_CLIENT").and()
                 .authorizeExchange().pathMatchers("/employee/**").hasAnyAuthority("ROLE_PRO", "ROLE_BUSINESS", "ROLE_ENTERPRISE")
-                .and().cors().and()
+                .and().authorizeExchange().pathMatchers("/roster/**").permitAll().and().cors().and()
                 .csrf().disable()
                 .addFilterBefore(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION);
         return security.build();
