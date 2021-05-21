@@ -488,15 +488,7 @@ public class RosterHelper {
 
                         })
                         .collectList()
-                        .flatMap(list -> {
-                            if (list.contains("error")) {
-                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("error")));
-                            } else if (list.contains("invalidSlot")) {
-                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidSlot")));
-                            } else {
-                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success")));
-                            }
-                        })
+                        .flatMap(this::processMessages)
 
                 );
     }
@@ -566,6 +558,58 @@ public class RosterHelper {
                             );
 
                 });
+    }
+
+    public Mono<ResponseEntity> deleteRosterSlot(Forms.DeleteRosterSlotForm slotForm){
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> Flux.fromIterable(slotForm.slotDetails)
+                        .flatMap(rosterSlotDetailsForm -> {
+                            Mono<? extends RosterSlot> slotMono = null;
+                            if (rosterSlotDetailsForm.employeeId != null && !rosterSlotDetailsForm.employeeId.equals("0"))
+                                slotMono = this.rosterService.findSlot(Long.parseLong(rosterSlotDetailsForm.slotId));
+
+                            if (rosterSlotDetailsForm.subdivisionId != null && !rosterSlotDetailsForm.subdivisionId.equals("0"))
+                                slotMono = this.rosterService.findSubdivisionRosterSlot(Long.parseLong(rosterSlotDetailsForm.slotId));
+
+                            if (slotForm == null)
+                                return Mono.just("invalidSlot");
+
+                            assert slotMono != null;
+                            return slotMono
+                                    .flatMap(slot -> this.returnInvalidSlotMessage(providerId, slot)
+                                            .flatMap(invalid -> {
+                                                if (invalid) {
+                                                    return Mono.just("invalidSlot");
+                                                } else {
+                                                    if (slot instanceof EmployeeRosterSlot) {
+                                                        return this.rosterService.deleteSlot((EmployeeRosterSlot) slot)
+                                                                .then(Mono.just("success"));
+
+                                                    } else if  (slot instanceof SubdivisionRosterSlot) {
+                                                        return this.rosterService.deleteSubdivisionSlot((SubdivisionRosterSlot) slot)
+                                                                .then(Mono.just("success"));
+                                                    } else {
+                                                        return Mono.just("error");
+                                                    }
+                                                }
+                                            })
+                                    );
+
+                        })
+                        .collectList()
+                        .flatMap(this::processMessages)
+
+                );
+    }
+
+    private Mono<ResponseEntity> processMessages(List<String> list){
+        if (list.contains("error")) {
+            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("error")));
+        } else if (list.contains("invalidSlot")) {
+            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidSlot")));
+        } else {
+            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success")));
+        }
     }
 
     private Mono<Boolean> returnInvalidSlotMessage(long providerId, RosterSlot slot) {

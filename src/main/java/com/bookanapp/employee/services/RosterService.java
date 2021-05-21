@@ -51,6 +51,11 @@ public class RosterService {
         return this.rosterSlotRepository.delete(slot);
     }
 
+    public Mono<Void> deleteSubdivisionSlot(SubdivisionRosterSlot slot) {
+        return this.subdivisionRosterSlotRepository.delete(slot);
+    }
+
+
     public Mono<AbsenceRequest> saveAbsenceRequest(AbsenceRequest request) {
         return this.absenceRequestRepository.save(request);
     }

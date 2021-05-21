@@ -120,6 +120,15 @@ public class RosterController {
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error pasting roster slot", "error"));
     }
 
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
+    @PostMapping("/delete/slot")
+    public Mono<? extends ResponseEntity> deleteRosterSlot(@RequestBody @Valid Mono<Forms.DeleteRosterSlotForm> rosterFormMono) {
+        return rosterFormMono
+                .flatMap(this.rosterHelper::deleteRosterSlot)
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error deleting roster slots", "error"));
+    }
+
 
 
     @PreAuthorize("hasAuthority('PROVIDER')" +

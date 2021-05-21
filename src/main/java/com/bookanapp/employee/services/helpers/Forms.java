@@ -312,6 +312,12 @@ public class Forms {
         long subdivisionId;
     }
 
+    @Data
+    public static class DeleteRosterSlotForm{
+        @NotNull
+        List<RosterSlotDetailsForm> slotDetails;
+    }
+
 
 
 }
