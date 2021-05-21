@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -662,6 +663,24 @@ public class RosterHelper {
                         )
                         .collectList()
                         .flatMap(this::processMessages)
+                );
+    }
+
+    public Mono<ResponseEntity> approveAbsence(String requestId, String deny){
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> this.rosterService.getAbsenceRequest(requestId)
+                        .flatMap(absenceRequest -> this.employeeService.getEmployee(absenceRequest.getEmployeeId())
+                                .flatMap(employee -> {
+                                    if (employee.getProviderId() == providerId) {
+                                        absenceRequest.setToBeApproved(false);
+                                        absenceRequest.setApproved(deny == null);
+                                        return this.rosterService.saveAbsenceRequest(absenceRequest)
+                                                .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+
+                                    } else {
+                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidRequest")));
+                                    }
+                                }))
                 );
     }
 

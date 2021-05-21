@@ -156,7 +156,13 @@ public class RosterController {
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error denying time off", "error"));
     }
 
-
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
+    @GetMapping("/approve/absence")
+    public Mono<? extends ResponseEntity> approveAbsence(@RequestParam("requestId") String requestId, @RequestParam(required = false, name = "deny") String deny) {
+        return  this.rosterHelper.approveAbsence(requestId, deny)
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error approving absence", "error"));
+    }
 
 
 
