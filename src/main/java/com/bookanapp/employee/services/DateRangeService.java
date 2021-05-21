@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class DateRangeService {
@@ -17,7 +18,7 @@ public class DateRangeService {
 
     }
 
-    public List<LocalDate> dateRange(String start, String end, boolean newSite) {
+    public List<LocalDate> dateRange(String start, String end) {
         String[] parseDateStart=deleteT(start).split("-");
         String[] parseDateEnd=deleteT(end).split("-");
         List<LocalDate> dateRange=new ArrayList<>();
@@ -27,10 +28,16 @@ public class DateRangeService {
              )); date=date.plusDays(1)){
             dateRange.add(date);
         }
-        if (newSite)
-            dateRange.remove(dateRange.get(dateRange.size()-1));
+
         return dateRange;
     }
+
+    public List<LocalDate> enhancedDateRange(LocalDate start, LocalDate end) {
+        var dates = start.datesUntil(end).collect(Collectors.toList());
+        dates.add(end);
+        return dates;
+    }
+
 
     public String deleteT(String source){
         String [] parseDate=source.split("T");

@@ -51,8 +51,16 @@ public class RosterService {
         return this.rosterSlotRepository.delete(slot);
     }
 
+    public Mono<Void> deleteSlots(List<EmployeeRosterSlot> slots) {
+        return this.rosterSlotRepository.deleteAll(slots);
+    }
+
     public Mono<Void> deleteSubdivisionSlot(SubdivisionRosterSlot slot) {
         return this.subdivisionRosterSlotRepository.delete(slot);
+    }
+
+    public Mono<Void> deleteSubdivisionSlots(List<SubdivisionRosterSlot> slots) {
+        return this.subdivisionRosterSlotRepository.deleteAll(slots);
     }
 
 
@@ -67,7 +75,7 @@ public class RosterService {
         return this.subdivisionRosterSlotRepository.saveAll(slots).collectList();
     }
 
-    public Mono<List<SubdivisionRosterSlot>> findSubdivisionRosterSlots(long id, LocalDate date){
+    public Mono<List<SubdivisionRosterSlot>> findSubdivisionRosterSlotsByDate(long id, LocalDate date){
         return this.subdivisionRosterSlotRepository.findAllBySubdivisionIdAndDate(id, date).collectList();
     }
 

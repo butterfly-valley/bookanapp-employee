@@ -318,6 +318,16 @@ public class Forms {
         List<RosterSlotDetailsForm> slotDetails;
     }
 
+    @Data
+    public static class DeleteOrPublishRosterSlotForm{
+        long divisionId;
+        Long subdivisionId;
+        long employeeId;
+        LocalDate startDate;
+         LocalDate endDate;
+        boolean delete;
+    }
+
 
 
 }

@@ -8,7 +8,6 @@ import com.bookanapp.employee.services.DateRangeService;
 import com.bookanapp.employee.services.EmployeeService;
 import com.bookanapp.employee.services.RosterService;
 import lombok.RequiredArgsConstructor;
-import org.apache.logging.log4j.util.PropertySource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -177,7 +176,7 @@ public class RosterHelper {
                                     if (division.getProviderId() == providerId) {
                                         dateRange.removeIf(e -> e.isBefore(LocalDate.now().minusDays(90L)));
                                         return Flux.fromIterable(dateRange)
-                                                .flatMap(date -> this.rosterService.findSubdivisionRosterSlots(subdivisionId, date)
+                                                .flatMap(date -> this.rosterService.findSubdivisionRosterSlotsByDate(subdivisionId, date)
                                                         .flatMap(dateSlots -> {
                                                             List<RosterEntity> entities = new ArrayList<>();
                                                             dateSlots.forEach(
@@ -228,7 +227,7 @@ public class RosterHelper {
                 .flatMap(provider -> this.employeeService.getEmployee(Long.parseLong(rosterForm.employeeId))
                         .flatMap(employee -> {
                             if (employee.getProviderId() == provider.getId()) {
-                                List<LocalDate> interval = dateRange.dateRange(rosterForm.schedule.startDate, rosterForm.schedule.endDate, false);
+                                List<LocalDate> interval = dateRange.dateRange(rosterForm.schedule.startDate, rosterForm.schedule.endDate);
                                 List<EmployeeRosterSlot> slots = new ArrayList<>();
 
                                 String start;
@@ -325,7 +324,7 @@ public class RosterHelper {
                         .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
                                 .flatMap(division -> {
                                     if (division.getProviderId() == provider.getId()) {
-                                        List<LocalDate> interval = dateRange.dateRange(rosterForm.schedule.startDate, rosterForm.schedule.endDate, false);
+                                        List<LocalDate> interval = dateRange.dateRange(rosterForm.schedule.startDate, rosterForm.schedule.endDate);
                                         List<SubdivisionRosterSlot> slots = new ArrayList<>();
 
                                         String start;
@@ -602,7 +601,90 @@ public class RosterHelper {
                 );
     }
 
-    private Mono<ResponseEntity> processMessages(List<String> list){
+    public Mono<ResponseEntity> publishRoster(Forms.DeleteOrPublishRosterSlotForm deleteForm){
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> {
+                            List<LocalDate> interval = dateRange.enhancedDateRange(deleteForm.startDate, deleteForm.endDate);
+
+                            return this.getEmployees(deleteForm.employeeId, deleteForm.subdivisionId, deleteForm.divisionId, providerId)
+                                    .flatMap(employees -> {
+                                        if (employees.size()>0) {
+                                            return this.publishOrDeleteEmployeeRosterSlots(employees, interval, deleteForm.delete)
+                                                    .flatMap(response -> {
+                                                        if (Objects.requireNonNull(response.getBody()).message.equals("success")){
+                                                            if (deleteForm.subdivisionId != null) {
+                                                                return this.checkSubdivisionId(deleteForm.subdivisionId, providerId)
+                                                                        .flatMap(subdivision -> {
+                                                                            if (subdivision.getName() != null) {
+                                                                                return this.publishOrDeleteSubdivisionRosterSlots(subdivision, interval, deleteForm.delete);
+                                                                            } else {
+                                                                                return Mono.just(response);
+                                                                            }
+                                                                        });
+                                                            } else {
+                                                                return Mono.just(response);
+                                                            }
+                                                        } else {
+                                                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("error")));
+                                                        }
+                                                    });
+
+                                        } else {
+                                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+                                        }
+                                    });
+
+                        }
+
+                );
+    }
+
+    private Mono<ResponseEntity<Forms.GenericResponse>> publishOrDeleteEmployeeRosterSlots(List<Employee> employees, List<LocalDate> range, boolean delete) {
+        return Flux.fromIterable(employees)
+                .flatMap(employee -> Flux.fromIterable(range)
+                        .flatMap(date -> this.rosterService.getRosterSlotsByDate(employee.getEmployeeId(), date)
+                                .flatMap(slots -> {
+                                    if (delete) {
+                                        return this.rosterService.deleteSlots(slots)
+                                                .then(Mono.just("success"));
+                                    } else {
+                                        slots.forEach(slot -> slot.setPublished(true));
+                                        return this.rosterService.saveRosterSlots(slots)
+                                                .then(Mono.just("success"));
+                                    }
+                                })
+
+                        )
+                        .collectList())
+                .collectList()
+                .flatMap(lists -> {
+                    List<String> messages = new ArrayList<>();
+                    lists.forEach(messages::addAll);
+                    return this.processMessages(messages);
+                });
+    }
+
+    private Mono<ResponseEntity<Forms.GenericResponse>> publishOrDeleteSubdivisionRosterSlots(Subdivision subdivision, List<LocalDate> range, boolean delete) {
+        return Flux.fromIterable(range)
+                .flatMap(date -> this.rosterService.findSubdivisionRosterSlotsByDate(subdivision.getSubdivisionId(), date)
+                        .flatMap(slots -> {
+                            if (delete) {
+                                return this.rosterService.deleteSubdivisionSlots(slots)
+                                        .then(Mono.just("success"));
+                            } else {
+                                slots.forEach(slot -> slot.setPublished(true));
+                                return this.rosterService.saveSubdivisionRosterSlots(slots)
+                                        .then(Mono.just("success"));
+                            }
+                        })
+
+                )
+                .collectList()
+                .flatMap(this::processMessages);
+    }
+
+
+    private Mono<ResponseEntity<Forms.GenericResponse>> processMessages(List<String> list){
         if (list.contains("error")) {
             return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("error")));
         } else if (list.contains("invalidSlot")) {
@@ -806,17 +888,17 @@ public class RosterHelper {
     }
 
     private Mono<List<Employee>> getEmployees(Long employeeId, Long subdivisionId, Long divisionId, long providerId) {
-        if (employeeId != null) {
+        if (employeeId != null && employeeId != 0) {
             return this.employeeService.getEmployee(employeeId)
                     .flatMap(employee -> {
                         List<Employee> employees = new ArrayList<>();
                         employees.add(employee);
                         return Mono.just(employees);
                     });
-        } else if (subdivisionId != null){
+        } else if (subdivisionId != null && subdivisionId != 0){
             return getSubDivisionEmployees(subdivisionId, providerId);
 
-        } else if (divisionId != null){
+        } else if (divisionId != null && divisionId != 0){
             return this.employeeService.getDivision(divisionId)
                     .flatMap(division -> {
                                 if (division.getProviderId() == providerId ) {
@@ -854,5 +936,16 @@ public class RosterHelper {
                 .flatMap(list -> Mono.just(ResponseEntity.ok(list)));
     }
 
+    private Mono<Subdivision> checkSubdivisionId(long subdivisionId, long providerId) {
+        return this.employeeService.getSubdivision(subdivisionId)
+                .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                .flatMap(division -> {
+                    if (division.getProviderId() == providerId) {
+                        return Mono.just(subdivision);
+                    } else {
+                        return Mono.just(new Subdivision());
+                    }
+                }));
+    }
 
 }

@@ -129,6 +129,15 @@ public class RosterController {
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error deleting roster slots", "error"));
     }
 
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
+    @PostMapping("/publish")
+    public Mono<? extends ResponseEntity> publishRoster(@RequestBody @Valid Mono<Forms.DeleteOrPublishRosterSlotForm> rosterFormMono) {
+        return rosterFormMono
+                .flatMap(this.rosterHelper::publishRoster)
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error deleting or publishing roster", "error"));
+    }
+
 
 
     @PreAuthorize("hasAuthority('PROVIDER')" +
