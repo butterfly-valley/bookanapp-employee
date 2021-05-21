@@ -301,5 +301,17 @@ public class Forms {
         String employeeId;
     }
 
+    @Data
+    public static class PasteRosterSlotForm{
+        @NotNull
+        LocalDate date;
+        long employeeId;
+        long size;
+        @NotNull
+        long slotId;
+        long subdivisionId;
+    }
+
+
 
 }

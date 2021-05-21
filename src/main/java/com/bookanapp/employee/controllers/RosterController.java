@@ -111,6 +111,16 @@ public class RosterController {
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error updating roster slot", "error"));
     }
 
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
+    @PostMapping("/paste/slot")
+    public Mono<? extends ResponseEntity> pasteRosterSlot(@RequestBody @Valid Mono<Forms.PasteRosterSlotForm> rosterFormMono) {
+        return rosterFormMono
+                .flatMap(this.rosterHelper::pasteRosterSlot)
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error pasting roster slot", "error"));
+    }
+
+
 
     @PreAuthorize("hasAuthority('PROVIDER')" +
             " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")

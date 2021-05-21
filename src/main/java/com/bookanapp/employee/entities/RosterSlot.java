@@ -18,7 +18,7 @@ public class RosterSlot {
         this.end = end;
     }
     @Id
-    private long slotId;
+    private Long slotId;
 
     private LocalDate date;
     private LocalTime start;

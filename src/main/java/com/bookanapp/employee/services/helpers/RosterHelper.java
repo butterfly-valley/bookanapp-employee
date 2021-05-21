@@ -501,7 +501,74 @@ public class RosterHelper {
                 );
     }
 
-    public Mono<Boolean> returnInvalidSlotMessage(long providerId, RosterSlot slot) {
+    public Mono<ResponseEntity> pasteRosterSlot(Forms.PasteRosterSlotForm slotForm){
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> {
+                    Mono<? extends RosterSlot> slotMono = this.rosterService.findSlot(slotForm.slotId).switchIfEmpty(Mono.just(new EmployeeRosterSlot()))
+                            .flatMap(slot -> {
+                                if (slot.getSlotId() == null) {
+                                    return this.rosterService.findSubdivisionRosterSlot(slotForm.slotId);
+                                } else {
+                                    return Mono.just(slot);
+                                }
+                            });
+                    return slotMono
+                            .flatMap(slot -> this.returnInvalidSlotMessage(providerId, slot)
+                                    .flatMap(invalid -> {
+                                        if (invalid) {
+                                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidSlot")));
+                                        } else {
+                                            if (slotForm.employeeId != 0) {
+                                                return this.employeeService.getEmployee(slotForm.employeeId)
+                                                        .flatMap(employee -> {
+                                                            if (employee.getProviderId() == providerId) {
+                                                                List<EmployeeRosterSlot> slotList = new ArrayList<>();
+                                                                for (int i = 0; i < slotForm.size; i++) {
+                                                                    LocalDate date = slotForm.date.plusDays(i);
+                                                                    EmployeeRosterSlot employeeRosterSlot = new EmployeeRosterSlot(date, slot.getStart(), slot.getEnd());
+                                                                    employeeRosterSlot.setEmployeeId(employee.getEmployeeId());
+                                                                    employeeRosterSlot.setColor(slot.getColor());
+                                                                    slotList.add(employeeRosterSlot);
+                                                                }
+                                                                return this.rosterService.saveRosterSlots(slotList)
+                                                                        .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+                                                            } else {
+                                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidSlot")));
+                                                            }
+                                                        });
+
+
+                                            } else if (slotForm.subdivisionId != 0) {
+                                                return this.employeeService.getSubdivision(slotForm.subdivisionId)
+                                                        .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                                                                .flatMap(division -> {
+                                                                    if (division.getProviderId() == providerId) {
+                                                                        List<SubdivisionRosterSlot> slotList = new ArrayList<>();
+                                                                        for (int i = 0; i < slotForm.size; i++) {
+                                                                            LocalDate date = slotForm.date.plusDays(i);
+                                                                            var newSlot = new SubdivisionRosterSlot(date, slot.getStart(), slot.getEnd());
+                                                                            newSlot.setSubdivisionId(subdivision.getSubdivisionId());
+                                                                            newSlot.setColor(slot.getColor());
+                                                                            slotList.add(newSlot);
+                                                                        }
+                                                                        return this.rosterService.saveSubdivisionRosterSlots(slotList)
+                                                                                .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+                                                                    } else {
+                                                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidSlot")));
+                                                                    }
+                                                                }));
+                                            } else {
+                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidSlot")));
+                                            }
+
+                                        }
+                                    })
+                            );
+
+                });
+    }
+
+    private Mono<Boolean> returnInvalidSlotMessage(long providerId, RosterSlot slot) {
         if (slot instanceof EmployeeRosterSlot)
             return this.employeeService.getEmployee(((EmployeeRosterSlot) slot).getEmployeeId())
                     .flatMap(employee -> Mono.just(employee.getProviderId() != providerId));
