@@ -73,6 +73,9 @@ public class RosterEntity {
         this.slotColor = slot.getColor();
         this.note = slot.getNote();
         this.published = slot.isPublished();
+        this.timeOff = slot.isTimeOff();
+        this.approved = slot.isTimeOffApproved();
+        this.denied = slot.isTimeOffDenied();
     }
 
     private String getInitials(String name) {
