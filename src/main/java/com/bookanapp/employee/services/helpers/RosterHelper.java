@@ -10,9 +10,11 @@ import com.bookanapp.employee.services.RosterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import javax.validation.Valid;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -639,6 +641,53 @@ public class RosterHelper {
                 );
     }
 
+    public Mono<ResponseEntity> approveTimeOff(Forms.DeleteForm deleteForm, boolean deny){
+        return this.commonHelper.getCurrentProviderId()
+                .flatMap(providerId -> Flux.fromIterable(deleteForm.idsToDelete)
+                        .flatMap(id -> this.rosterService.findSlot(Long.parseLong(id))
+                                .flatMap(slot -> this.employeeService.getEmployee(slot.getEmployeeId())
+                                        .flatMap(employee -> {
+                                            if (employee.getProviderId() == providerId) {
+                                                slot.setTimeOffApproved(!deny);
+                                                slot.setTimeOffDenied(deny);
+                                                return this.rosterService.saveRosterSlot(slot)
+                                                        .then(this.sendTimeOffApprovalResponseEmail(employee, !deny));
+
+                                            } else {
+                                                return Mono.just("invalidSlot");
+                                            }
+
+                                        })
+                                )
+                        )
+                        .collectList()
+                        .flatMap(this::processMessages)
+                );
+    }
+
+    private Mono<String> sendTimeOffApprovalResponseEmail(Employee employee, boolean approved) {
+        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.providerServiceUrl + "/provider/get/" + employee.getProviderId());
+
+        return client.get()
+                .retrieve()
+                .bodyToMono(Provider.class)
+                .flatMap(provider -> {
+                    String url = commonHelper.notificationServiceUrl + "/email/employee/timeoff/approve";
+                    if (!approved)
+                        url = url + "?deny=true";
+                    var emailClient = this.commonHelper.buildAPIAccessWebClient(url);
+                    var form = new Forms.TimeOffRequestNotificationForm(provider, employee, employee.getUsername());
+                    return emailClient.post()
+                            .body(Mono.just(form), Forms.TimeOffRequestNotificationForm.class)
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .flatMap(message -> Mono.just("success"))
+                            .onErrorResume(e -> Mono.just("success"));
+                });
+
+    }
+
+
     private Mono<ResponseEntity<Forms.GenericResponse>> publishOrDeleteEmployeeRosterSlots(List<Employee> employees, List<LocalDate> range, boolean delete) {
         return Flux.fromIterable(employees)
                 .flatMap(employee -> Flux.fromIterable(range)
@@ -939,13 +988,13 @@ public class RosterHelper {
     private Mono<Subdivision> checkSubdivisionId(long subdivisionId, long providerId) {
         return this.employeeService.getSubdivision(subdivisionId)
                 .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
-                .flatMap(division -> {
-                    if (division.getProviderId() == providerId) {
-                        return Mono.just(subdivision);
-                    } else {
-                        return Mono.just(new Subdivision());
-                    }
-                }));
+                        .flatMap(division -> {
+                            if (division.getProviderId() == providerId) {
+                                return Mono.just(subdivision);
+                            } else {
+                                return Mono.just(new Subdivision());
+                            }
+                        }));
     }
 
 }

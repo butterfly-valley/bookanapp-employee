@@ -138,6 +138,26 @@ public class RosterController {
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error deleting or publishing roster", "error"));
     }
 
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
+    @PostMapping("/approve/time-off")
+    public Mono<? extends ResponseEntity> approveTimeOff(@RequestBody @Valid Mono<Forms.DeleteForm> rosterFormMono) {
+        return rosterFormMono
+                .flatMap(form -> this.rosterHelper.approveTimeOff(form, false))
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error approving time off", "error"));
+    }
+
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
+    @PostMapping("/deny/time-off")
+    public Mono<? extends ResponseEntity> denyTimeOff(@RequestBody @Valid Mono<Forms.DeleteForm> rosterFormMono) {
+        return rosterFormMono
+                .flatMap(form -> this.rosterHelper.approveTimeOff(form, true))
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error denying time off", "error"));
+    }
+
+
+
 
 
     @PreAuthorize("hasAuthority('PROVIDER')" +
