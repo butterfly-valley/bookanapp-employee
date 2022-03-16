@@ -15,6 +15,12 @@ import java.time.LocalTime;
 @Table("roster_slot")
 @AllArgsConstructor
 public class EmployeeRosterSlot extends RosterSlot {
+    private long employeeId;
+    private boolean timeOff = false;
+    private boolean halfDayOff = false;
+    private boolean timeOffApproved = false;
+    private boolean timeOffDenied = false;
+    private int balanceType;
 
     public EmployeeRosterSlot(LocalDate date, LocalTime start, LocalTime end) {
         super(date, start, end);
@@ -24,13 +30,6 @@ public class EmployeeRosterSlot extends RosterSlot {
         super();
     }
 
-    private long employeeId;
-
-    private boolean timeOff = false;
-    private boolean halfDayOff = false;
-    private boolean timeOffApproved = false;
-    private boolean timeOffDenied = false;
-    private int balanceType;
 
     public enum TimeOffBalanceType{
         VACS(0),

@@ -64,10 +64,10 @@ public class RosterService {
     }
 
 
-    public Mono<AbsenceRequest> saveAbsenceRequest(AbsenceRequest request) {
+    public Mono<TimeRequest> saveAbsenceRequest(TimeRequest request) {
         return this.absenceRequestRepository.save(request);
     }
-    public Mono<AbsenceRequest> getAbsenceRequest(String id) {
+    public Mono<TimeRequest> getAbsenceRequest(String id) {
         return this.absenceRequestRepository.findById(id);
     }
 

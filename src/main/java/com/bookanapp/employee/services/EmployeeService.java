@@ -200,7 +200,7 @@ public class EmployeeService {
     }
 
 
-    public Mono<List<AbsenceRequest>> getTimeOffRequest(long employeeId) {
+    public Mono<List<TimeRequest>> getTimeOffRequest(long employeeId) {
         return this.absenceRequestRepository.getAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
 

@@ -12,11 +12,11 @@ import java.util.List;
 public class Division {
     @Id
     private long divisionId;
-    @Transient
-    List<Subdivision> subdivisions = new ArrayList<>();
     private long providerId;
     @NotBlank
     private String name;
+    @Transient
+    List<Subdivision> subdivisions = new ArrayList<>();
 
     public Division(long providerId, String name) {
         this.providerId = providerId;

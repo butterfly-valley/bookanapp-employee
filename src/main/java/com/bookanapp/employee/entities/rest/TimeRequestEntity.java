@@ -1,6 +1,6 @@
 package com.bookanapp.employee.entities.rest;
 
-import com.bookanapp.employee.entities.AbsenceRequest;
+import com.bookanapp.employee.entities.TimeRequest;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -11,7 +11,7 @@ import java.util.List;
 @NoArgsConstructor
 public class TimeRequestEntity {
 
-    public TimeRequestEntity(AbsenceRequest request) {
+    public TimeRequestEntity(TimeRequest request) {
         this.id = request.getId();
         this.approved = request.isApproved();
         this.toBeApproved = request.isToBeApproved();

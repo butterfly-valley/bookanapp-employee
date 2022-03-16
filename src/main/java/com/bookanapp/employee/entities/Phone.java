@@ -18,7 +18,6 @@ public class Phone {
     @Id
     private long id;
     private Long employeeId;
-
     private PhoneType phoneType;
     private String code;
     private String number;

@@ -1,5 +1,4 @@
 package com.bookanapp.employee.entities;
-
 import lombok.*;
 import org.springframework.data.annotation.Id;
 
@@ -12,20 +11,20 @@ import java.util.Objects;
 @Data
 public class RosterSlot {
 
-    public RosterSlot(LocalDate date, LocalTime start, LocalTime end) {
-        this.date = date;
-        this.start = start;
-        this.end = end;
-    }
     @Id
     private Long slotId;
-
     private LocalDate date;
     private LocalTime start;
     private LocalTime end;
     private String note;
     private String color;
     private boolean published;
+
+    public RosterSlot(LocalDate date, LocalTime start, LocalTime end) {
+        this.date = date;
+        this.start = start;
+        this.end = end;
+    }
 
     @Override
     public boolean equals(Object o) {

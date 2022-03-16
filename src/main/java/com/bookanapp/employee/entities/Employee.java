@@ -37,6 +37,7 @@ public class Employee {
     private String jobTitle;
     private String bankAccount;
     private String taxPayerId;
+    private LocalDate dob;
     @Transient
     private Address address;
     @Transient

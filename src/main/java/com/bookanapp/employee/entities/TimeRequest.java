@@ -15,20 +15,20 @@ import java.time.LocalTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AbsenceRequest implements Persistable<String> {
+public class TimeRequest implements Persistable<String> {
 
     @Id
     private String id;
     private long employeeId;
-
     private LocalDate date;
+    private String dates;
     private LocalTime start;
     private LocalTime end;
-
     private boolean approved;
     private boolean toBeApproved = true;
     private boolean overtime;
     private String comments;
+    private long minutes;
 
     @Transient
     private boolean newRequest;

@@ -338,7 +338,7 @@ public class EmployeeProfileHelper {
                     LocalTime start = LocalTime.of(timeRequestForm.start.hour, timeRequestForm.start.minute);
                     LocalTime end = LocalTime.of(timeRequestForm.end.hour, timeRequestForm.end.minute);
 
-                    AbsenceRequest timeRequest = AbsenceRequest.builder()
+                    TimeRequest timeRequest = TimeRequest.builder()
                             .id(UUID.randomUUID().toString())
                             .toBeApproved(true)
                             .employeeId(employee.getEmployeeId())

@@ -15,7 +15,6 @@ public class Address {
     @Id
     private long id;
     private Long employeeId;
-
     @NotNull
     @Size(min = 3, max = 300)
     private String street;
