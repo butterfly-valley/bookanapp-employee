@@ -51,6 +51,61 @@ public class EmployeeHelper {
 
     }
 
+    public Mono<ResponseEntity> currentDivisions(){
+
+        var divisionEntityList = this.commonHelper.getCurrentProviderId()
+                .flatMap(this.employeeService::getDivisions)
+                        .flatMap(divisions -> Flux.fromIterable(divisions)
+                                .flatMap(division -> this.employeeService.getSubdivisions(division.getDivisionId())
+                                .flatMap(subdivisions -> Flux.fromIterable(subdivisions)
+                                        .flatMap(subdivision -> Mono.just(new Forms.SubdivisionList(subdivision.getName(), subdivision.getSubdivisionId())))
+                                        .collectList()
+                                        .flatMap(subdivisionLists -> Mono.just(new Forms.DivisionEntity(division.getName(), division.getDivisionId(), subdivisionLists)))
+                                ))
+                                .collectList()
+
+                        );
+
+        var unassignedEmployees = this.commonHelper.getCurrentProviderId()
+                .flatMap(this.employeeService::findAllUnassignedEmployees)
+                .flatMap(employees -> {
+                    if (employees.size()>0) {
+                        return  Mono.just(new Forms.DivisionEntity(null, null, new ArrayList<>()));
+                    } else {
+                        return Mono.empty();
+                    }
+                });
+
+        return divisionEntityList.
+                flatMap(divisionEntities -> unassignedEmployees
+                        .flatMap(divisionEntity -> {
+                            divisionEntities.add(divisionEntity);
+                            return Mono.just(ResponseEntity.ok(divisionEntities));
+                        })
+                        .switchIfEmpty(Mono.just(ResponseEntity.ok(divisionEntities)))
+                );
+
+    }
+
+//    public Mono<ResponseEntity> getListOfTimeRequests(long id){
+//
+//        return this.commonHelper.getCurrentProviderId()
+//                .flatMap(providerId -> this.employeeService.getEmployee(id)
+//                        .flatMap(employee -> {
+//                            if (employee.getProviderId() == providerId) {
+//
+//                            } else {
+//                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
+//
+//                            }
+//
+//                            return null;
+//                        }));
+//
+//
+//
+//    }
+
     public Mono<ResponseEntity> findEmployeeByName(String term) {
         return this.commonHelper.getCurrentProviderId()
                 .flatMap(providerId -> this.employeeService.getAllEmployeesByName(providerId, term))
@@ -759,31 +814,36 @@ public class EmployeeHelper {
     private Mono<ResponseEntity> getTimeOff(long id) {
 
         return this.employeeService.getTimeOffRequest(id)
-                .flatMap(timeOffRequests -> Flux.fromIterable(timeOffRequests)
-                        .flatMap(timeOffRequest -> {
-                            var entity = new TimeRequestEntity(timeOffRequest);
-                            var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl + "/upload//timeoff/attachments/" + timeOffRequest.getId());
-
-                            return client.get()
-                                    .retrieve()
-                                    .bodyToMono(String[].class)
-                                    .flatMap(response -> {
-                                        entity.setAttachments(Arrays.asList(response));
-                                        return Mono.just(entity);
-
-                                    });
-
-                        })
-                        .collectList()
-                        .flatMap(entities -> {
-                            var sortedEntities = entities.stream()
-                                    .sorted(Comparator.comparing(TimeRequestEntity::getStart))
-                                    .collect(Collectors.toList());
-
-                            Collections.reverse(sortedEntities);
-                            return Mono.just(ResponseEntity.ok(sortedEntities));
-                        })
+                .flatMap(timeOffRequests ->
+                        getTimeOffRequestEntities(timeOffRequests)
                 );
+    }
+
+    public Mono<ResponseEntity<List<TimeRequestEntity>>> getTimeOffRequestEntities(List<TimeRequest> timeOffRequests) {
+        return Flux.fromIterable(timeOffRequests)
+        .flatMap(timeOffRequest -> {
+            var entity = new TimeRequestEntity(timeOffRequest);
+            var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl + "/upload/timeoff/attachments/" + timeOffRequest.getId());
+
+            return client.get()
+                    .retrieve()
+                    .bodyToMono(String[].class)
+                    .flatMap(response -> {
+                        entity.setAttachments(Arrays.asList(response));
+                        return Mono.just(entity);
+
+                    });
+
+        })
+        .collectList()
+        .flatMap(entities -> {
+            var sortedEntities = entities.stream()
+                    .sorted(Comparator.comparing(TimeRequestEntity::getStart))
+                    .collect(Collectors.toList());
+
+            Collections.reverse(sortedEntities);
+            return Mono.just(ResponseEntity.ok(sortedEntities));
+        });
     }
 
     private Mono<ResponseEntity> filterEmployeeByName(List<Employee> employees) {

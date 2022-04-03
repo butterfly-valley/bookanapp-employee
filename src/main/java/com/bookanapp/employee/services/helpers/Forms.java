@@ -324,8 +324,24 @@ public class Forms {
         Long subdivisionId;
         long employeeId;
         LocalDate startDate;
-         LocalDate endDate;
+        LocalDate endDate;
         boolean delete;
+    }
+
+
+    @Data
+    @AllArgsConstructor
+    public static class DivisionEntity {
+        String name;
+        Long id;
+        List<SubdivisionList> subdivisions;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class SubdivisionList {
+        String name;
+        long id;
     }
 
 

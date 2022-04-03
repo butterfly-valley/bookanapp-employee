@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Data
@@ -17,8 +18,8 @@ public class TimeRequestEntity {
         this.toBeApproved = request.isToBeApproved();
         this.overtime = request.isOvertime();
         this.comments = request.getComments();
-        this.start = LocalDateTime.of(request.getDate(), request.getStart());
-        this.end = LocalDateTime.of(request.getDate(), request.getEnd());
+        this.start = request.getStart();
+        this.end = request.getEnd();
 
     }
 
@@ -27,8 +28,8 @@ public class TimeRequestEntity {
     private boolean toBeApproved;
     private boolean overtime;
     private String comments;
-    private LocalDateTime start;
-    private LocalDateTime end;
+    private LocalTime start;
+    private LocalTime end;
     private List<String> attachments;
 
 }

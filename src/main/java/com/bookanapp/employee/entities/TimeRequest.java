@@ -20,7 +20,7 @@ public class TimeRequest implements Persistable<String> {
     @Id
     private String id;
     private long employeeId;
-    private LocalDate date;
+//    private LocalDate date;
     private String dates;
     private LocalTime start;
     private LocalTime end;

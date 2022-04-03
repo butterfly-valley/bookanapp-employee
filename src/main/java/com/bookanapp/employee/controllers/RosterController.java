@@ -23,7 +23,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/employee/roster")
-@PreAuthorize("hasAuthority('ROLE_PRO') or hasAuthority('ROLE_BUSINESS')  or hasAuthority('ROLE_ENTERPRISE')")
+@PreAuthorize("hasAuthority('PROVIDER')" +
+        " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER') or hasAuthority('SUBPROVIDER_ROSTER_VIEW') or hasAuthority('SUBPROVIDER_ADMIN')" )
 public class RosterController {
     private final RosterHelper rosterHelper;
     private final CommonHelper commonHelper;

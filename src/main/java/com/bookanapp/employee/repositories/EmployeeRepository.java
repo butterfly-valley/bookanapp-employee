@@ -12,4 +12,5 @@ public interface EmployeeRepository extends ReactiveCrudRepository<Employee, Lon
     Mono<Employee> getByProviderIdAndUsername(long providerId, String username);
     Mono<Employee> getByEmployeeId(long employeeId);
     Flux<Employee> getAllBySubdivisionId(long subdivisionId);
+    Flux<Employee> getAllByProviderIdAndSubdivisionIdIsNull(long providerId);
 }

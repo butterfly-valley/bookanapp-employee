@@ -30,6 +30,7 @@ public class EmployeeProfileHelper {
     private final CommonHelper commonHelper;
     private final EmployeeService employeeService;
     private final RosterService rosterService;
+    private final EmployeeHelper employeeHelper;
 
     public Mono<Employee> loadEmployee(long employeeId) {
         return this.employeeService.getEmployee(employeeId)
@@ -342,7 +343,7 @@ public class EmployeeProfileHelper {
                             .id(UUID.randomUUID().toString())
                             .toBeApproved(true)
                             .employeeId(employee.getEmployeeId())
-                            .date(timeRequestForm.date)
+//                            .date(timeRequestForm.date)
                             .start(start)
                             .end(end)
                             .overtime(timeRequestForm.overtime)
@@ -359,28 +360,7 @@ public class EmployeeProfileHelper {
     public Mono<ResponseEntity> getListOfAbsencesOrOvertime() {
         return this.commonHelper.getCurrentEmployee()
                 .flatMap(employee -> this.employeeService.getTimeOffRequest(employee.getEmployeeId())
-                        .flatMap(timeOffRequests -> Flux.fromIterable(timeOffRequests)
-                                .flatMap(request -> {
-                                    var entity = new TimeRequestEntity(request);
-                                    var attachmentClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl +
-                                            "/upload/timeoff/attachments/" + request.getId());
-                                    return attachmentClient.get()
-                                            .retrieve()
-                                            .bodyToMono(String[].class)
-                                            .flatMap(attachmentArray -> {
-                                                entity.setAttachments(Arrays.asList(attachmentArray));
-                                                return Mono.just(entity);
-                                            });
-                                })
-                                .collectList()
-                                .flatMap(entities -> {
-                                    var sortedEntities = entities.stream()
-                                            .sorted(Comparator.comparing(TimeRequestEntity::getStart))
-                                            .collect(Collectors.toList());
-
-                                    Collections.reverse(sortedEntities);
-                                    return Mono.just(ResponseEntity.ok(sortedEntities));
-                                })));
+                        .flatMap(this.employeeHelper::getTimeOffRequestEntities));
 
     }
 

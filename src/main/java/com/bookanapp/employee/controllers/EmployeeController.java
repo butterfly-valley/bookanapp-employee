@@ -29,8 +29,6 @@ public class EmployeeController {
     private final CommonHelper commonHelper;
 
     @GetMapping("/get")
-    @PreAuthorize( "hasAuthority('PROVIDER')" +
-            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
     public Mono<? extends ResponseEntity> currentEmployees(@RequestParam("page") Integer page, @RequestParam("employeesPerPage") Integer employeesPerPage,
                                                            @RequestParam(value = "employeeId", required = false) String employeeId,
                                                            @RequestParam(value = "subdivisionId", required = false) String subdivisionId,
@@ -44,9 +42,21 @@ public class EmployeeController {
 
     }
 
+    /*******
+     *Returns available divisions
+     ******/
+    @GetMapping("/get/divisions")
+    public Mono<? extends ResponseEntity> getDivisionList() {
+
+        return this.employeeHelper.currentDivisions()
+                .onErrorResume(e -> {
+                    log.error("Error displaying divisions for provider for providerId, error: " + e.getMessage());
+                    return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                });
+
+    }
+
     @GetMapping("/search")
-    @PreAuthorize( "hasAuthority('PROVIDER')" +
-            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
     public Mono<? extends ResponseEntity> findEmployeeByName(@RequestParam("term") String term) {
 
         return this.employeeHelper.findEmployeeByName(term)
@@ -125,7 +135,7 @@ public class EmployeeController {
 
     @GetMapping(value="/get/time/list/{id}")
     @PreAuthorize( "hasAuthority('PROVIDER')" +
-            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN')")
+            " || hasAuthority('SUBPROVIDER_FULL') || hasAuthority('SUBPROVIDER_ADMIN') || hasAuthority('SUBPROVIDER_ROSTER')")
     public Mono<? extends ResponseEntity> getListOfTimeRequests(@PathVariable("id") long id) {
 
         return this.employeeHelper.getListOfTimeRequests(id)

@@ -73,6 +73,11 @@ public class EmployeeService {
         return this.employeeRepository.getAllByProviderId(providerId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
 
+    public Mono<List<Employee>> findAllUnassignedEmployees(long providerId) {
+        return this.employeeRepository.getAllByProviderIdAndSubdivisionIdIsNull(providerId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+
     public Mono<List<Employee>> getAllEmployeesByName(long providerId, String term) {
         return this.employeeRepository.getAllByProviderIdAndNameContaining(providerId, term).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
