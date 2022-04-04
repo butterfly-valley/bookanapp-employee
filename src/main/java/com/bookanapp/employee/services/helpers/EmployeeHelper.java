@@ -6,6 +6,7 @@ import com.bookanapp.employee.services.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.support.PagedListHolder;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -30,24 +31,13 @@ public class EmployeeHelper {
 
     public Mono<ResponseEntity> currentEmployees(Integer page, Integer employeesPerPage, String employeeId, String subdivisionId, String divisionId){
 
+//        var pageRequest = PageRequest.of(page, employeesPerPage);
+
         return this.commonHelper.getCurrentProviderId()
                 .flatMap(providerId -> this.employeeService.getAllEmployees(providerId)
-                        .flatMap(employees -> this.commonHelper.getCurrentUser()
-                                .flatMap(currentUser -> {
-                                    if (currentUser instanceof EmployeeDetails) {
-                                        long loggedUserId = ((EmployeeDetails) currentUser).getId();
+                        .flatMap(employees ->  this.getEmployees(employeeId, subdivisionId, divisionId, providerId, employees)
+                                .flatMap(filtered -> this.filteredEmployees(filtered, page, employeesPerPage))));
 
-                                        return this.getEmployees(employeeId, subdivisionId, divisionId, providerId, employees.stream()
-                                                .filter(employee -> employee.getEmployeeId() != loggedUserId)
-                                                .collect(Collectors.toList()))
-                                                .flatMap(filtered -> this.filteredEmployees(filtered, page, employeesPerPage));
-
-                                    } else {
-                                        return this.getEmployees(employeeId, subdivisionId, divisionId, providerId, employees)
-                                                .flatMap(filtered -> this.filteredEmployees(filtered, page, employeesPerPage));
-                                    }
-                                })
-                        ));
 
     }
 
@@ -55,16 +45,16 @@ public class EmployeeHelper {
 
         var divisionEntityList = this.commonHelper.getCurrentProviderId()
                 .flatMap(this.employeeService::getDivisions)
-                        .flatMap(divisions -> Flux.fromIterable(divisions)
-                                .flatMap(division -> this.employeeService.getSubdivisions(division.getDivisionId())
+                .flatMap(divisions -> Flux.fromIterable(divisions)
+                        .flatMap(division -> this.employeeService.getSubdivisions(division.getDivisionId())
                                 .flatMap(subdivisions -> Flux.fromIterable(subdivisions)
                                         .flatMap(subdivision -> Mono.just(new Forms.SubdivisionList(subdivision.getName(), subdivision.getSubdivisionId())))
                                         .collectList()
                                         .flatMap(subdivisionLists -> Mono.just(new Forms.DivisionEntity(division.getName(), division.getDivisionId(), subdivisionLists)))
                                 ))
-                                .collectList()
+                        .collectList()
 
-                        );
+                );
 
         var unassignedEmployees = this.commonHelper.getCurrentProviderId()
                 .flatMap(this.employeeService::findAllUnassignedEmployees)
@@ -109,23 +99,7 @@ public class EmployeeHelper {
     public Mono<ResponseEntity> findEmployeeByName(String term) {
         return this.commonHelper.getCurrentProviderId()
                 .flatMap(providerId -> this.employeeService.getAllEmployeesByName(providerId, term))
-                .flatMap(employees -> this.commonHelper.getCurrentUser()
-                        .flatMap(currentUser -> {
-                            if (currentUser instanceof EmployeeDetails) {
-                                long loggedUserId = ((EmployeeDetails) currentUser).getId();
-
-
-                                return filterEmployeeByName(employees.stream()
-                                        .filter(employee -> employee.getEmployeeId() != loggedUserId)
-                                        .collect(Collectors.toList()));
-
-
-                            } else {
-                                return this.filterEmployeeByName(employees);
-                            }
-                        }));
-
-
+                .flatMap(this::filterEmployeeByName);
     }
 
     public Mono<ResponseEntity> showEmployee(long id) {
@@ -821,29 +795,29 @@ public class EmployeeHelper {
 
     public Mono<ResponseEntity<List<TimeRequestEntity>>> getTimeOffRequestEntities(List<TimeRequest> timeOffRequests) {
         return Flux.fromIterable(timeOffRequests)
-        .flatMap(timeOffRequest -> {
-            var entity = new TimeRequestEntity(timeOffRequest);
-            var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl + "/upload/timeoff/attachments/" + timeOffRequest.getId());
+                .flatMap(timeOffRequest -> {
+                    var entity = new TimeRequestEntity(timeOffRequest);
+                    var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl + "/upload/timeoff/attachments/" + timeOffRequest.getId());
 
-            return client.get()
-                    .retrieve()
-                    .bodyToMono(String[].class)
-                    .flatMap(response -> {
-                        entity.setAttachments(Arrays.asList(response));
-                        return Mono.just(entity);
+                    return client.get()
+                            .retrieve()
+                            .bodyToMono(String[].class)
+                            .flatMap(response -> {
+                                entity.setAttachments(Arrays.asList(response));
+                                return Mono.just(entity);
 
-                    });
+                            });
 
-        })
-        .collectList()
-        .flatMap(entities -> {
-            var sortedEntities = entities.stream()
-                    .sorted(Comparator.comparing(TimeRequestEntity::getStart))
-                    .collect(Collectors.toList());
+                })
+                .collectList()
+                .flatMap(entities -> {
+                    var sortedEntities = entities.stream()
+                            .sorted(Comparator.comparing(TimeRequestEntity::getStart))
+                            .collect(Collectors.toList());
 
-            Collections.reverse(sortedEntities);
-            return Mono.just(ResponseEntity.ok(sortedEntities));
-        });
+                    Collections.reverse(sortedEntities);
+                    return Mono.just(ResponseEntity.ok(sortedEntities));
+                });
     }
 
     private Mono<ResponseEntity> filterEmployeeByName(List<Employee> employees) {
@@ -854,8 +828,9 @@ public class EmployeeHelper {
     }
 
     private Mono<ResponseEntity> filteredEmployees(List<Employee> employees, Integer page, Integer employeesPerPage) {
-        var map = new Forms.EmployeeMap();
 
+
+        var map = new Forms.EmployeeMap();
         map.setTotal(employees.size());
 
         PagedListHolder<Employee> employeePagedListHolder=new PagedListHolder<>(employees);
@@ -864,13 +839,13 @@ public class EmployeeHelper {
             page=1;
         }
 
-        int goToSubProvidersPage=page-1;
+        int goToPage=page-1;
 
-        if (goToSubProvidersPage<=employeePagedListHolder.getPageCount()&&goToSubProvidersPage>=0){
-            employeePagedListHolder.setPage(goToSubProvidersPage);
+        if (goToPage<=employeePagedListHolder.getPageCount()&&goToPage>=0){
+            employeePagedListHolder.setPage(goToPage);
         }
 
-        employeePagedListHolder.setPageSize(1000);
+        employeePagedListHolder.setPageSize(employeesPerPage);
 
         return Flux.fromIterable(employeePagedListHolder.getPageList())
                 .flatMap(this::buildShortEmployeeEntity)
@@ -906,19 +881,16 @@ public class EmployeeHelper {
                     .flatMap(division -> {
 
                         if (division.getProviderId() == providerId) {
-                            List<Long> subdivisionsIds = new ArrayList<>();
-
-                            division.getSubdivisions().forEach(
-                                    subdivision -> {
-                                        subdivisionsIds.add(subdivision.getSubdivisionId());
-                                    }
-                            );
-
-                            return Mono.just(finalEmployees.stream()
-                                    .filter(employee ->  employee.getSubdivisionId() !=null && subdivisionsIds.contains(employee.getSubdivisionId()))
-                                    .sorted(Comparator.comparing(Employee::getName,
-                                            Comparator.comparing(String::toLowerCase)))
-                                    .collect(Collectors.toList()));
+                            return this.employeeService.getSubdivisions(division.getDivisionId())
+                                    .flatMap(subdivisions -> Mono.just(subdivisions.stream()
+                                            .map(Subdivision::getSubdivisionId)
+                                            .collect(Collectors.toList()))
+                                    )
+                                    .flatMap(subdivisionsIds -> Mono.just(finalEmployees.stream()
+                                            .filter(employee ->  employee.getSubdivisionId() !=null && subdivisionsIds.contains(employee.getSubdivisionId()))
+                                            .sorted(Comparator.comparing(Employee::getName,
+                                                    Comparator.comparing(String::toLowerCase)))
+                                            .collect(Collectors.toList())));
                         } else {
                             return Mono.just(new ArrayList<>());
                         }

@@ -28,6 +28,11 @@ public class RosterService {
         return this.rosterSlotRepository.findAllByEmployeeIdAndDate(employeeId, date).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>()))).retry(3);
     }
 
+    public Mono<List<EmployeeRosterSlot>> getRosterSlotsInInterval(long employeeId, List<LocalDate> dates) {
+        return this.rosterSlotRepository.findAllByEmployeeIdAndDateIn(employeeId, dates).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>()))).retry(3);
+    }
+
+
 
     public Mono<List<EmployeeRosterSlot>> saveRosterSlots(List<EmployeeRosterSlot> slots) {
         return this.rosterSlotRepository.saveAll(slots).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));

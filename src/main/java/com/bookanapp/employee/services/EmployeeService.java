@@ -4,6 +4,7 @@ import com.bookanapp.employee.entities.*;
 import com.bookanapp.employee.entities.AuthorizedRoster;
 import com.bookanapp.employee.repositories.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -71,6 +72,11 @@ public class EmployeeService {
 
     public Mono<List<Employee>> getAllEmployees(long providerId) {
         return this.employeeRepository.getAllByProviderId(providerId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+
+    public Mono<List<Employee>> getAllEmployees(long providerId, Pageable pageable) {
+        return this.employeeRepository.getAllByProviderId(providerId, pageable).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
 
     public Mono<List<Employee>> findAllUnassignedEmployees(long providerId) {

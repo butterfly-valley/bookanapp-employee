@@ -48,7 +48,7 @@ public class RosterHelper {
 
     public Mono<ResponseEntity> displaySharedEmployeesAnonymously(Long employeeId, Long subdivisionId, Long divisionId) {
         return this.getEmployees(employeeId, subdivisionId, divisionId, 0, true)
-                        .flatMap(employees -> this.getEmployeeEntities(employees, true));
+                .flatMap(employees -> this.getEmployeeEntities(employees, true));
     }
 
     public Mono<ResponseEntity> displayRoster(String start, String end, String offset, Long employeeId, String subdivisionId, String divisionId, String all, String showTimeOff) {
@@ -199,33 +199,24 @@ public class RosterHelper {
     }
 
     private Mono<? extends List<RosterEntity>> getEmployeeRosterEntities(long employeeId, List<LocalDate> dateRange, boolean showTimeOff, Employee employee, boolean anonymous) {
-        return Flux.fromIterable(dateRange)
-                .flatMap(date -> this.rosterService.getRosterSlotsByDate(employeeId, date)
-                        .flatMap(dateSlots -> {
-                            List<RosterEntity> entities = new ArrayList<>();
-                            dateSlots.forEach(
-                                    slot -> {
-                                        if (!showTimeOff) {
-                                            if (!anonymous) {
-                                                entities.add(new RosterEntity(slot));
-                                            } else {
-                                                entities.add(new RosterEntity(slot, true, employee));
-                                            }
-
-                                        } else {
-                                            if (slot.isTimeOff())
-                                                entities.add(new RosterEntity(slot, "", employee));
-                                        }
-                                    }
-                            );
-
-                            return Mono.just(entities);
-                        })
-                )
-                .collectList()
-                .flatMap(lists -> {
+        return  this.rosterService.getRosterSlotsInInterval(employeeId, dateRange)
+                .flatMap(dateSlots -> {
                     List<RosterEntity> entities = new ArrayList<>();
-                    lists.forEach(entities::addAll);
+                    dateSlots.forEach(
+                            slot -> {
+                                if (!showTimeOff) {
+                                    if (!anonymous) {
+                                        entities.add(new RosterEntity(slot));
+                                    } else {
+                                        entities.add(new RosterEntity(slot, true, employee));
+                                    }
+
+                                } else {
+                                    if (slot.isTimeOff())
+                                        entities.add(new RosterEntity(slot, "", employee));
+                                }
+                            }
+                    );
                     return Mono.just(entities);
                 });
     }
