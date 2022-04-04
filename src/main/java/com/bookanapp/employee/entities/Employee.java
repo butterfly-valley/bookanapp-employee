@@ -1,6 +1,5 @@
 package com.bookanapp.employee.entities;
 
-import com.bookanapp.employee.entities.rest.EmployeeAuthority;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,6 +10,7 @@ import org.springframework.data.relational.core.mapping.Column;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -49,7 +49,7 @@ public class Employee {
     @Transient
     private Subdivision subdivision;
     @Transient
-    private Set<String> authorities;
+    private Set<String> authorities = new HashSet<>();
     @Transient
     private List<String> authorizedScheduleNames = new ArrayList<>();
     @Transient

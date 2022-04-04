@@ -915,11 +915,10 @@ public class EmployeeHelper {
         if (employee.getAuthorities().contains("SUBPROVIDER_FULL")) {
             employee.getAuthorities().clear();
             employee.getAuthorities().add("SUBPROVIDER_FULL");
-        } else {
-            employee.getAuthorities().remove("SUBPROVIDER_ROSTER_VIEW");
         }
-
-
+//        else {
+//            employee.getAuthorities().remove("SUBPROVIDER_ROSTER_VIEW");
+//        }
 
         return  Mono.just(EmployeeEntity.builder()
                 .id(employee.getEmployeeId())
@@ -985,15 +984,11 @@ public class EmployeeHelper {
                 .bodyToMono(String[].class)
                 .flatMap(array -> {
                     var authorities = Arrays.asList(array);
-//                     auths.forEach(
-//                            employeeAuthority -> {
-//                                if (!employeeAuthority.getAuthority().equals("ROLE_PRO")
-//                                        || !employeeAuthority.getAuthority().equals("ROLE_BUSINESS")
-//                                        || !employeeAuthority.getAuthority().equals("ROLE_ENTERPRISE"))
-//                                    authorities.add(employeeAuthority.getAuthority());
-//                            }
-//                    );
                     return this.employeeService.getEmployee(employeeId)
+                            .flatMap(employee -> {
+                                employee.getAuthorities().addAll(Arrays.asList(array));
+                                return Mono.just(employee);
+                            })
                             .flatMap(employee -> this.employeeService.getFamily(employeeId)
                                     .flatMap(familyMembers -> {
                                         employee.setFamily(familyMembers);
@@ -1056,11 +1051,7 @@ public class EmployeeHelper {
                                         return Mono.just(employee);
                                     })
                                     .switchIfEmpty(Mono.just(employee))
-                            )
-                            .flatMap(employee -> {
-                                employee.setAuthorities(new HashSet<>(authorities));
-                                return Mono.just(employee);
-                            });
+                            );
 
                 });
 
