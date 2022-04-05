@@ -304,6 +304,15 @@ public class Forms {
 
     @EqualsAndHashCode(callSuper = true)
     @Data
+    public static class SubdivisionRosterRangeForm extends RosterRangeSuperForm{
+        @NotBlank
+        String subdivisionId;
+
+    }
+
+
+    @EqualsAndHashCode(callSuper = true)
+    @Data
     public static class SubdivisionRosterForm extends RosterSuperForm{
         @NotNull
         Long subdivisionId;
@@ -352,6 +361,7 @@ public class Forms {
         LocalDate startDate;
         LocalDate endDate;
         boolean delete;
+        boolean unpublish;
     }
 
 

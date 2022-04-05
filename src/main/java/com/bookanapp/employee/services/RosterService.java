@@ -46,6 +46,9 @@ public class RosterService {
         return this.subdivisionRosterSlotRepository.save(slot);
     }
 
+    public Mono<List<SubdivisionRosterSlot>> saveSubdivisionRosterSlots(List<SubdivisionRosterSlot> slots) {
+        return this.subdivisionRosterSlotRepository.saveAll(slots).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
 
 
     public Mono<EmployeeRosterSlot> findSlot(long slotId) {
@@ -76,9 +79,6 @@ public class RosterService {
         return this.absenceRequestRepository.findById(id);
     }
 
-    public Mono<List<SubdivisionRosterSlot>> saveSubdivisionRosterSlots(List<SubdivisionRosterSlot> slots){
-        return this.subdivisionRosterSlotRepository.saveAll(slots).collectList();
-    }
 
     public Mono<List<SubdivisionRosterSlot>> findSubdivisionRosterSlotsByDate(long id, LocalDate date){
         return this.subdivisionRosterSlotRepository.findAllBySubdivisionIdAndDate(id, date).collectList();

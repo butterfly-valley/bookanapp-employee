@@ -99,6 +99,16 @@ public class RosterController {
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error uploading employee roster", "uploadRosterError")).log();
     }
 
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
+    @PostMapping("/upload/range/subdivision")
+    public Mono<? extends ResponseEntity> uploadRosterRangeSubdivision(@RequestBody @Valid Mono<Forms.SubdivisionRosterRangeForm> rosterFormMono) {
+        return rosterFormMono
+                .flatMap(this.rosterHelper::uploadRangeRosterDivision)
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error uploading division roster", "uploadRosterError")).log();
+    }
+
+
 
     @PreAuthorize("hasAuthority('PROVIDER')" +
             " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")

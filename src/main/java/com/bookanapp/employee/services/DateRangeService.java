@@ -114,6 +114,7 @@ public class DateRangeService {
         return getLocalTimes(duration, scheduleType, start, end);
     }
 
+
     private List<LocalTime> getLocalTimes(String duration, String scheduleType, LocalTime start, LocalTime end) {
         List<LocalTime> localTimes = new ArrayList<>();
 

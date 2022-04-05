@@ -22,6 +22,8 @@ public class RosterEntity {
     private boolean timeOff;
     private boolean halfDay;
     private boolean denied;
+    private boolean sickLeave;
+    private boolean maternityLeave;
 
     public RosterEntity(EmployeeRosterSlot slot) {
         this.employeeId = slot.getEmployeeId();
@@ -35,6 +37,8 @@ public class RosterEntity {
         this.halfDay = slot.isHalfDayOff();
         this.published = slot.isPublished();
         this.denied = slot.isTimeOffDenied();
+        this.sickLeave = slot.isSickLeave();
+        this.maternityLeave = slot.isMaternityLeave();
     }
 
     public RosterEntity(EmployeeRosterSlot slot, String name, Employee employee) {
@@ -50,6 +54,8 @@ public class RosterEntity {
         this.published = slot.isPublished();
         this.denied = slot.isTimeOffDenied();
         this.name = employee.getName();
+        this.sickLeave = slot.isSickLeave();
+        this.maternityLeave = slot.isMaternityLeave();
     }
 
 
@@ -76,6 +82,8 @@ public class RosterEntity {
         this.timeOff = slot.isTimeOff();
         this.approved = slot.isTimeOffApproved();
         this.denied = slot.isTimeOffDenied();
+        this.sickLeave = slot.isSickLeave();
+        this.maternityLeave = slot.isMaternityLeave();
     }
 
     private String getInitials(String name) {
