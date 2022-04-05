@@ -916,9 +916,6 @@ public class EmployeeHelper {
             employee.getAuthorities().clear();
             employee.getAuthorities().add("SUBPROVIDER_FULL");
         }
-//        else {
-//            employee.getAuthorities().remove("SUBPROVIDER_ROSTER_VIEW");
-//        }
 
         return  Mono.just(EmployeeEntity.builder()
                 .id(employee.getEmployeeId())

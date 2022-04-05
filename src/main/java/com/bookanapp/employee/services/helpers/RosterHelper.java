@@ -10,12 +10,9 @@ import com.bookanapp.employee.services.RosterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import javax.validation.Valid;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -67,14 +64,7 @@ public class RosterHelper {
                             slotEntities = this.getSubdivisionRoster(Long.parseLong(subdivisionId), dateRange, providerId);
                         } else {
                             slotEntities = this.getSubDivisionEmployees(Long.parseLong(subdivisionId), providerId, false)
-                                    .flatMap(employees -> Flux.fromIterable(employees)
-                                            .flatMap(employee -> this.getEmployeeRoster(employee.getEmployeeId(), dateRange, true))
-                                            .collectList()
-                                            .flatMap(lists -> {
-                                                List<RosterEntity> entities = new ArrayList<>();
-                                                lists.forEach(entities::addAll);
-                                                return Mono.just(entities);
-                                            }));
+                                    .flatMap(employees -> getRosterSlotEntities(dateRange, employees));
 
                         }
                     }
@@ -105,14 +95,7 @@ public class RosterHelper {
 
                     if (all != null){
                         slotEntities = this.employeeService.getAllEmployees(providerId)
-                                .flatMap(employees -> Flux.fromIterable(employees)
-                                        .flatMap(employee -> this.getEmployeeRoster(employee.getEmployeeId(), dateRange, true))
-                                        .collectList()
-                                        .flatMap(lists -> {
-                                            List<RosterEntity> entities = new ArrayList<>();
-                                            lists.forEach(entities::addAll);
-                                            return Mono.just(entities);
-                                        }));
+                                .flatMap(employees -> getRosterSlotEntities(dateRange, employees));
                     }
 
                     if (slotEntities != null) {
@@ -120,6 +103,17 @@ public class RosterHelper {
                     } else {
                         return Mono.just(ResponseEntity.ok(new ArrayList<>()));
                     }
+                });
+    }
+
+    private Mono<List<RosterEntity>> getRosterSlotEntities(List<LocalDate> dateRange, List<Employee> employees) {
+        return Flux.fromIterable(employees)
+                .flatMap(employee -> this.getEmployeeRoster(employee.getEmployeeId(), dateRange, true))
+                .collectList()
+                .flatMap(lists -> {
+                    List<RosterEntity> entities = new ArrayList<>();
+                    lists.forEach(entities::addAll);
+                    return Mono.just(entities);
                 });
     }
 
@@ -244,21 +238,12 @@ public class RosterHelper {
     }
 
     private Mono<List<RosterEntity>> getSubdivisionRosterEntities(List<LocalDate> dateRange, long subdivisionId) {
-        dateRange.removeIf(e -> e.isBefore(LocalDate.now().minusDays(90L)));
-        return Flux.fromIterable(dateRange)
-                .flatMap(date -> this.rosterService.findSubdivisionRosterSlotsByDate(subdivisionId, date)
-                        .flatMap(dateSlots -> {
-                            List<RosterEntity> entities = new ArrayList<>();
-                            dateSlots.forEach(
-                                    slot -> entities.add(new RosterEntity(slot))
-                            );
-                            return Mono.just(entities);
-                        })
-                )
-                .collectList()
-                .flatMap(lists -> {
+        return this.rosterService.findSubdivisionRosterSlotsByDateInRange(subdivisionId, dateRange)
+                .flatMap(slots -> {
                     List<RosterEntity> entities = new ArrayList<>();
-                    lists.forEach(entities::addAll);
+                    slots.forEach(
+                            slot -> entities.add(new RosterEntity(slot))
+                    );
                     return Mono.just(entities);
                 });
     }
@@ -301,9 +286,7 @@ public class RosterHelper {
                                 } else {
                                     // calculate pattern
                                     if (rosterForm.pattern != null && rosterForm.pattern.length()>2) {
-
                                         interval = dateRange.rosterPatternDateRange(interval, rosterForm.pattern);
-
                                     } else {
                                         return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
                                     }
@@ -368,6 +351,7 @@ public class RosterHelper {
 
                                 }
 
+                                setMaternityOrSickLeave(slots, rosterForm.sickLeave, rosterForm.maternityLeave);
                                 return this.rosterService.saveRosterSlots(slots)
                                         .then(this.saveNewColor(rosterForm, provider.getId()))
                                         .then(this.saveNewPattern(rosterForm, provider.getId()))
@@ -380,6 +364,64 @@ public class RosterHelper {
                         }));
 
     }
+
+    public Mono<ResponseEntity> uploadRangeRoster(Forms.RosterRangeForm rosterForm) {
+        return this.commonHelper.fetchCurrentProvider()
+                .flatMap(provider -> this.employeeService.getEmployee(Long.parseLong(rosterForm.employeeId))
+                        .flatMap(employee -> {
+                            if (employee.getProviderId() == provider.getId()) {
+                                List<LocalDate> interval = rosterForm.dates;
+                                List<EmployeeRosterSlot> slots = new ArrayList<>();
+
+                                String start;
+                                String end;
+
+                                for (LocalDate date : interval) {
+                                    LocalTime initialEndTime = null;
+                                    start = dateRange.addZeroBeforeInt(rosterForm.patternStart.hour) + ":" + dateRange.addZeroBeforeInt(rosterForm.patternStart.minute);
+                                    end = dateRange.addZeroBeforeInt(rosterForm.patternEnd.hour) + ":" + dateRange.addZeroBeforeInt(rosterForm.patternEnd.minute);
+                                    LocalTime scheduleStart = LocalTime.parse(start, DateTimeFormatter.ofPattern("H:mm"));
+                                    LocalTime scheduleEnd = LocalTime.parse(end, DateTimeFormatter.ofPattern("H:mm"));
+
+                                    if (scheduleEnd.isBefore(scheduleStart))
+                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+
+                                    if (initialEndTime != null && scheduleStart.isBefore(initialEndTime)) {
+                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+                                    } else {
+                                        initialEndTime = scheduleEnd;
+
+                                    }
+
+                                    long durationInMinutes = scheduleStart.until(scheduleEnd, ChronoUnit.MINUTES);
+                                    String duration = LocalTime.MIN.plus(Duration.ofMinutes(durationInMinutes)).toString();
+                                    List<LocalTime> hours = dateRange.addHour(start, end, duration, "1", provider);
+                                    createRangeRosterSlots(rosterForm);
+
+
+                                }
+
+                                setMaternityOrSickLeave(slots, rosterForm.sickLeave, rosterForm.maternityLeave);
+
+                                return this.rosterService.saveRosterSlots(slots)
+                                        .then(this.saveNewColor(rosterForm, provider.getId()))
+                                        .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+
+                            } else {
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
+
+                            }
+                        }));
+
+    }
+
+    private void setMaternityOrSickLeave(List<EmployeeRosterSlot> slots, boolean sickLeave, boolean maternityLeave) {
+        slots.forEach(slot -> {
+            slot.setSickLeave(sickLeave);
+            slot.setMaternityLeave(maternityLeave);
+        });
+    }
+
 
     public Mono<ResponseEntity> uploadSubdivisionRoster(Forms.SubdivisionRosterForm rosterForm) {
         return this.commonHelper.fetchCurrentProvider()
@@ -918,7 +960,8 @@ public class RosterHelper {
      * @param durationInMinutes duration for each slot
      * @param hours start and end of slot
      */
-    private void createSlots(Forms.RosterSuperForm rosterForm, Employee employee, Subdivision subdivision, List<EmployeeRosterSlot> slots, List<SubdivisionRosterSlot> subdivisionSlots, LocalDate date, long durationInMinutes, List<LocalTime> hours) {
+    private void createNormalOrRangeSlots(Employee employee, Subdivision subdivision, List<EmployeeRosterSlot> slots, List<SubdivisionRosterSlot> subdivisionSlots, LocalDate date,
+                                          long durationInMinutes, List<LocalTime> hours, String color, String note, boolean publish) {
         hours.forEach(x -> {
             if (date.isAfter(LocalDate.now().minusDays(1L))) {
                 LocalDateTime key = LocalDateTime.of(date, x);
@@ -931,13 +974,13 @@ public class RosterHelper {
                         slot = new SubdivisionRosterSlot(date, key.toLocalTime(), key.plusMinutes(durationInMinutes).toLocalTime());
                         ((SubdivisionRosterSlot) slot).setSubdivisionId(subdivision.getSubdivisionId());
                     }
-                    if (rosterForm.getColor() != null)
-                        slot.setColor(rosterForm.getColor());
+                    if (color != null)
+                        slot.setColor(color);
 
-                    if (rosterForm.getNote() != null)
-                        slot.setNote(rosterForm.getNote());
+                    if (note != null)
+                        slot.setNote(note);
 
-                    if (rosterForm.isPublish())
+                    if (publish)
                         slot.setPublished(true);
 
                     if (employee != null) {
@@ -955,7 +998,15 @@ public class RosterHelper {
         long durationInMinutes = scheduleStart.until(scheduleEnd, ChronoUnit.MINUTES);
         String duration = LocalTime.MIN.plus(Duration.ofMinutes(durationInMinutes)).toString();
         List<LocalTime> hours = dateRange.addHour(start, end, duration, "1", provider);
-        this.createSlots(rosterForm, employee, subdivision, slots, subdivisionSlots, date, durationInMinutes, hours);
+        this.createNormalOrRangeSlots(employee, subdivision, slots, subdivisionSlots, date, durationInMinutes, hours, rosterForm.color, rosterForm.note, rosterForm.publish);
+
+    }
+
+    private void createRangeRosterSlots(Forms.RosterRangeForm rosterForm, Provider provider, Employee employee, List<EmployeeRosterSlot> slots, List<SubdivisionRosterSlot> subdivisionSlots, Subdivision subdivision, String start, String end, LocalDate date, LocalTime scheduleStart, LocalTime scheduleEnd) {
+        long durationInMinutes = scheduleStart.until(scheduleEnd, ChronoUnit.MINUTES);
+        String duration = LocalTime.MIN.plus(Duration.ofMinutes(durationInMinutes)).toString();
+        List<LocalTime> hours = dateRange.addHour(start, end, duration, "1", provider);
+        this.createNormalOrRangeSlots(employee, subdivision, slots, subdivisionSlots, date, durationInMinutes, hours, rosterForm.color, rosterForm.note, rosterForm.publish);
 
     }
 
@@ -963,7 +1014,7 @@ public class RosterHelper {
         long durationInMinutes = scheduleStart.until(scheduleEnd, ChronoUnit.MINUTES);
         String duration = LocalTime.MIN.plus(Duration.ofMinutes(durationInMinutes)).toString();
         List<LocalTime> hours = dateRange.addHour(start, end, duration, "1", provider);
-        this.createSlots(rosterForm, employee, subdivision, slots, subdivisionSlots, date, durationInMinutes, hours);
+        this.createNormalOrRangeSlots(employee, subdivision, slots, subdivisionSlots, date, durationInMinutes, hours, rosterForm.color, rosterForm.note, rosterForm.publish);
 
     }
 

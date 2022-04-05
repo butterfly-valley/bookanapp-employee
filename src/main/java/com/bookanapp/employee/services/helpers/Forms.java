@@ -10,6 +10,7 @@ import com.bookanapp.employee.validation.Password;
 import lombok.*;
 
 
+import javax.annotation.Nullable;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -247,6 +248,20 @@ public class Forms {
         @Size(max = 30)
         String colorName;
         boolean publish;
+        List<LocalDate> dates;
+    }
+
+    @Data
+    public static class RosterRangeSuperForm {
+        RosterDay.RosterDaySchedule.RosterDayScheduleHour patternStart;
+        RosterDay.RosterDaySchedule.RosterDayScheduleHour patternEnd;
+        @Size(max = 36)
+        String color;
+        String note;
+        @Size(max = 30)
+        String colorName;
+        boolean publish;
+        List<LocalDate> dates;
     }
 
     @Data
@@ -274,6 +289,17 @@ public class Forms {
         @NotBlank
         String employeeId;
         String patternName;
+        boolean sickLeave;
+        boolean maternityLeave;
+    }
+
+    @EqualsAndHashCode(callSuper = true)
+    @Data
+    public static class RosterRangeForm extends RosterRangeSuperForm{
+        @NotBlank
+        String employeeId;
+        boolean sickLeave;
+        boolean maternityLeave;
     }
 
     @EqualsAndHashCode(callSuper = true)

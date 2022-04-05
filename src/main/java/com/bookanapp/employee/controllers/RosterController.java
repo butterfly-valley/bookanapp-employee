@@ -6,17 +6,13 @@ import com.bookanapp.employee.services.helpers.RosterHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.support.WebExchangeBindException;
 import reactor.core.publisher.Mono;
 
 import javax.validation.Valid;
 import java.util.ArrayList;
-import java.util.List;
 
 @RestController
 @CrossOrigin()
@@ -93,6 +89,16 @@ public class RosterController {
                 .flatMap(this.rosterHelper::uploadRoster)
                 .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error uploading employee roster", "uploadRosterError"));
     }
+
+    @PreAuthorize("hasAuthority('PROVIDER')" +
+            " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")
+    @PostMapping("/upload/range")
+    public Mono<? extends ResponseEntity> uploadRosterRange(@RequestBody @Valid Mono<Forms.RosterRangeForm> rosterFormMono) {
+        return rosterFormMono
+                .flatMap(this.rosterHelper::uploadRangeRoster)
+                .onErrorResume(e -> this.commonHelper.returnErrorMessage(e, "Error uploading employee roster", "uploadRosterError")).log();
+    }
+
 
     @PreAuthorize("hasAuthority('PROVIDER')" +
             " or hasAuthority('SUBPROVIDER_FULL') or hasAuthority('SUBPROVIDER_ROSTER')")

@@ -21,6 +21,8 @@ public class EmployeeRosterSlot extends RosterSlot {
     private boolean timeOffApproved = false;
     private boolean timeOffDenied = false;
     private int balanceType;
+    private boolean sickLeave = false;
+    private boolean maternityLeave = false;
 
     public EmployeeRosterSlot(LocalDate date, LocalTime start, LocalTime end) {
         super(date, start, end);

@@ -84,6 +84,11 @@ public class RosterService {
         return this.subdivisionRosterSlotRepository.findAllBySubdivisionIdAndDate(id, date).collectList();
     }
 
+    public Mono<List<SubdivisionRosterSlot>> findSubdivisionRosterSlotsByDateInRange(long id, List<LocalDate> dates){
+        return this.subdivisionRosterSlotRepository.findAllBySubdivisionIdAndDateIn(id, dates).collectList();
+    }
+
+
     public Mono<SubdivisionRosterSlot> findSubdivisionRosterSlot(long id){
         return this.subdivisionRosterSlotRepository.findById(id);
     }
