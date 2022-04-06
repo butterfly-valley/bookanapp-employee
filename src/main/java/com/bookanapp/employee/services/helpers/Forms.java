@@ -326,6 +326,9 @@ public class Forms {
         RosterDay.RosterDaySchedule.RosterDayScheduleHour start;
         RosterDay.RosterDaySchedule.RosterDayScheduleHour end;
         String color;
+        boolean publish;
+        boolean sickLeave;
+        boolean maternityLeave;
     }
 
     @Data

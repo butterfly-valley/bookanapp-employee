@@ -419,7 +419,11 @@ public class RosterHelper {
                                                     if (slotForm.color != null)
                                                         slot.setColor(slotForm.color);
 
+                                                    slot.setPublished(slotForm.publish);
+
                                                     if (slot instanceof EmployeeRosterSlot) {
+                                                        ((EmployeeRosterSlot) slot).setMaternityLeave(slotForm.maternityLeave);
+                                                        ((EmployeeRosterSlot) slot).setSickLeave(slotForm.sickLeave);
                                                         return this.rosterService.saveRosterSlot((EmployeeRosterSlot) slot)
                                                                 .then(Mono.just("success"));
 

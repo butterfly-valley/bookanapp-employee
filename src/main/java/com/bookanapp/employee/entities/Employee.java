@@ -20,7 +20,6 @@ import java.util.Set;
 @Builder
 public class Employee {
 
-
     @Column("id")
     @Id
     private long entityId;
@@ -54,5 +53,4 @@ public class Employee {
     private List<String> authorizedScheduleNames = new ArrayList<>();
     @Transient
     private List<Long> authorizedRosters = new ArrayList<>();
-
 }

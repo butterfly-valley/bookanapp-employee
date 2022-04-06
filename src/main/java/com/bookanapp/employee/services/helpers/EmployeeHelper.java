@@ -238,7 +238,6 @@ public class EmployeeHelper {
                 .flatMap(providerId -> this.employeeService.getEmployee(id)
                         .flatMap(employee -> {
                                     if (employee.getProviderId() == providerId) {
-
                                         List<EmployeeAuthority> authorities = new ArrayList<>();
                                         form.authorizations.forEach(auth -> authorities.add(new EmployeeAuthority(auth)));
                                         Set<String> auths = new HashSet<>();
@@ -1057,18 +1056,21 @@ public class EmployeeHelper {
     }
 
     private Mono<Employee> setAuthorizedScheduleNames(Employee employee, List<Long> schedules) {
-        Set<String> ids = new HashSet<>();
-        schedules.forEach(schedule -> ids.add(Long.toString(schedule)));
+        //TODO connect to appointment service to retrieve authorised schedules
 
-        var webclient = this.commonHelper.buildAPIAccessWebClient(commonHelper.appointmentServiceUrl + "/employee/schedules");
-        return webclient.post()
-                .body(Mono.just(new Forms.SetOfStringsForm(ids)), Forms.SetOfStringsForm.class)
-                .retrieve()
-                .bodyToMono(String[].class)
-                .flatMap(scheduleList -> {
-                    employee.setAuthorizedScheduleNames(Arrays.asList(scheduleList));
-                    return Mono.just(employee);
-                });
+        return Mono.just(employee);
+//        Set<String> ids = new HashSet<>();
+//        schedules.forEach(schedule -> ids.add(Long.toString(schedule)));
+//
+//        var webclient = this.commonHelper.buildAPIAccessWebClient(commonHelper.appointmentServiceUrl + "/employee/schedules");
+//        return webclient.post()
+//                .body(Mono.just(new Forms.SetOfStringsForm(ids)), Forms.SetOfStringsForm.class)
+//                .retrieve()
+//                .bodyToMono(String[].class)
+//                .flatMap(scheduleList -> {
+//                    employee.setAuthorizedScheduleNames(Arrays.asList(scheduleList));
+//                    return Mono.just(employee);
+//                });
     }
 
     private Mono<Boolean> isRegistered(String username, long id) {
