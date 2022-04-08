@@ -1,9 +1,7 @@
 package com.bookanapp.employee.services.helpers;
 
 import com.bookanapp.employee.entities.*;
-import com.bookanapp.employee.entities.rest.EmployeeEntity;
-import com.bookanapp.employee.entities.rest.Provider;
-import com.bookanapp.employee.entities.rest.RosterEntity;
+import com.bookanapp.employee.entities.rest.*;
 import com.bookanapp.employee.services.DateRangeService;
 import com.bookanapp.employee.services.EmployeeService;
 import com.bookanapp.employee.services.RosterService;
@@ -555,6 +553,117 @@ class RosterHelperService {
                             }
                         }));
     }
+
+    Mono<Boolean> checkRosterAuthority(Subdivision subdivision) {
+        return this.commonHelper.getCurrentUser()
+                .flatMap(userDetails -> {
+                    if (userDetails instanceof ProviderDetails) {
+                        return Mono.just(true);
+                    } else if (userDetails instanceof EmployeeDetails) {
+                        return this.employeeService.getAuthorizedRosters(((EmployeeDetails) userDetails).getId())
+                                .switchIfEmpty(Mono.just(new ArrayList<>()))
+                                .flatMap(rosterList -> {
+                                    if (rosterList.size()==0) {
+                                        return Mono.just(true);
+                                    } else {
+                                        var idList = rosterList.stream()
+                                                .map(AuthorizedRoster::getRosterId)
+                                                .collect(Collectors.toList());
+                                        return Mono.just(idList.contains(subdivision.getSubdivisionId()));
+                                    }
+                                });
+
+                    } else {
+                        return Mono.just(false);
+                    }
+                });
+    }
+
+    Mono<ResponseEntity> uploadRange(Employee employee, long providerId, Forms.RosterRangeForm rosterForm) {
+        if (employee.getProviderId() == providerId) {
+            List<LocalDate> interval = rosterForm.dates;
+            List<EmployeeRosterSlot> slots = new ArrayList<>();
+
+            for (LocalDate date : interval) {
+                if (this.createPatternSlots(employee, slots, date, rosterForm.patternStart, rosterForm.patternEnd, rosterForm.color, rosterForm.note, rosterForm.publish))
+                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+            }
+
+            this.setMaternityOrSickLeave(slots, rosterForm.sickLeave, rosterForm.maternityLeave);
+
+            return this.rosterService.saveRosterSlots(slots)
+                    .then(this.saveNewColor(rosterForm.colorName, rosterForm.color, providerId))
+                    .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+
+        } else {
+            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
+
+        }
+    }
+
+//    Mono<ResponseEntity> uploadRoster(Forms.RosterForm rosterForm, long providerId) {
+//        return this.employeeService.getEmployee(Long.parseLong(rosterForm.employeeId))
+//                .flatMap(employee -> {
+//                    if (employee.getProviderId() == providerId) {
+//                        List<LocalDate> interval = dateRange.dateRange(rosterForm.schedule.startDate, rosterForm.schedule.endDate);
+//                        List<EmployeeRosterSlot> slots = new ArrayList<>();
+//
+//                        if (rosterForm.schedule.days.day.size()>0) {
+//                        } else {
+//                            // calculate pattern
+//                            if (rosterForm.pattern != null && rosterForm.pattern.length()>2) {
+//                                interval = dateRange.rosterPatternDateRange(interval, rosterForm.pattern);
+//                            } else {
+//                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+//                            }
+//                        }
+//
+//                        for (LocalDate date : interval) {
+//                            if (rosterForm.schedule.days.day.size() > 0) {
+//                                for (Forms.RosterDay weekday : rosterForm.schedule.days.day) {
+//                                    if (date.isAfter(LocalDate.now().minusDays(1)) && date.getDayOfWeek().toString().equals(weekday.weekday)) {
+//                                        LocalTime initialEndTime = null;
+//                                        for (Forms.RosterDay.RosterDaySchedule daySchedule : weekday.schedule) {
+//                                            LocalTime scheduleStart = LocalTime.of(daySchedule.start.hour, daySchedule.start.minute);
+//                                            LocalTime scheduleEnd = LocalTime.of(daySchedule.end.hour, daySchedule.end.minute);
+//
+//                                            if (scheduleEnd.isBefore(scheduleStart))
+//                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+//
+//                                            if (initialEndTime != null && scheduleStart.isBefore(initialEndTime)) {
+//                                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+//                                            } else {
+//                                                initialEndTime = scheduleEnd;
+//
+//                                            }
+//
+//                                            this.createNormalOrRangeSlots(employee, null , slots, null, date, scheduleStart, scheduleEnd,
+//                                                    rosterForm.color, rosterForm.note, rosterForm.publish);
+//                                        }
+//                                    }
+//
+//                                }
+//
+//                            } else {
+//                                if (createPatternSlots(employee, slots, date, rosterForm.patternStart, rosterForm.patternEnd, rosterForm.color, rosterForm.note, rosterForm.publish))
+//                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidHour")));
+//                            }
+//
+//
+//                        }
+//
+//                        this.setMaternityOrSickLeave(slots, rosterForm.sickLeave, rosterForm.maternityLeave);
+//                        return this.rosterService.saveRosterSlots(slots)
+//                                .then(this.saveNewColor(rosterForm.colorName, rosterForm.color, providerId))
+//                                .then(this.saveNewPattern(rosterForm, providerId))
+//                                .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+//
+//                    } else {
+//                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidEmployee")));
+//
+//                    }
+//                });
+//    }
 
     String getInitials(String name) {
         String[] words = name.split(" ");

@@ -30,7 +30,7 @@ public class EmployeeProfileHelper {
     private final CommonHelper commonHelper;
     private final EmployeeService employeeService;
     private final RosterService rosterService;
-    private final EmployeeHelper employeeHelper;
+    private final EmployeeHelperService helperService;
 
     public Mono<Employee> loadEmployee(long employeeId) {
         return this.employeeService.getEmployee(employeeId)
@@ -360,7 +360,7 @@ public class EmployeeProfileHelper {
     public Mono<ResponseEntity> getListOfAbsencesOrOvertime() {
         return this.commonHelper.getCurrentEmployee()
                 .flatMap(employee -> this.employeeService.getTimeOffRequest(employee.getEmployeeId())
-                        .flatMap(this.employeeHelper::getTimeOffRequestEntities));
+                        .flatMap(this.helperService::getTimeOffRequestEntities));
 
     }
 

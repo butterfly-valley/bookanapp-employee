@@ -197,6 +197,11 @@ public class EmployeeService {
         return this.authorizedScheduleRepository.deleteAll(authorizedSchedules);
     }
 
+    public Mono<Void> deleteAuthorizedRosters(List<AuthorizedRoster> authorizedRosters) {
+        return this.authorizedRosterRepository.deleteAll(authorizedRosters);
+    }
+
+
 
     public Mono<List<AuthorizedSchedule>> saveAuthorizedSchedules(List<AuthorizedSchedule> authorizedSchedules) {
         return this.authorizedScheduleRepository.saveAll(authorizedSchedules).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
@@ -204,6 +209,10 @@ public class EmployeeService {
 
     public Mono<List<AuthorizedRoster>> getAuthorizedRosters(long employeeId) {
         return this.authorizedRosterRepository.findAllByEmployeeId(employeeId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    }
+
+    public Flux<Subdivision> getSubdivisionsByListOfIds(List<Long> ids) {
+        return this.subdivisionRepository.findAllById(ids);
     }
 
     public Mono<List<AuthorizedRoster>> saveAuthorizedRosters(List<AuthorizedRoster> authorizedRosters) {
