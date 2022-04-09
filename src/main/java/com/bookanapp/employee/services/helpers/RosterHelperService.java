@@ -19,6 +19,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -364,32 +365,29 @@ class RosterHelperService {
 
     Mono<Employee> loadEmployee(long employeeId) {
         return this.employeeService.getEmployee(employeeId)
-                .flatMap(employee -> {
-                            if (employee.getSubdivisionId() != null) {
-                                return this.employeeService.getSubdivision(employee.getSubdivisionId())
-                                        .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
-                                                .flatMap(division -> {
-                                                    subdivision.setDivision(division);
-                                                    employee.setSubdivision(subdivision);
-                                                    return Mono.just(employee);
-                                                }))
-                                        .switchIfEmpty(Mono.defer(() -> Mono.just(employee)));
-                            } else {
-                                return Mono.just(employee);
-                            }
-                        }
-                );
+                .flatMap(this::setEmployeeSubdivision);
+    }
 
-
+    Mono<? extends Employee> setEmployeeSubdivision(Employee employee) {
+            if (employee.getSubdivisionId() != null) {
+                return this.employeeService.getSubdivision(employee.getSubdivisionId())
+                        .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
+                                .flatMap(division -> {
+                                    subdivision.setDivision(division);
+                                    employee.setSubdivision(subdivision);
+                                    return Mono.just(employee);
+                                }))
+                        .switchIfEmpty(Mono.defer(() -> Mono.just(employee)));
+            } else {
+                return Mono.just(employee);
+            }
     }
 
 
     Mono<EmployeeEntity> buildEmployeeEntity(Employee employee) {
-
         return  Mono.just(EmployeeEntity.builder()
                 .id(employee.getEmployeeId())
                 .name(employee.getName())
-                .registerDate(employee.getRegisterDate().toString())
                 .username(employee.getUsername())
                 .avatar(employee.getAvatar())
                 .subdivision(employee.getSubdivision() != null ? employee.getSubdivision().getName() : null)
@@ -397,12 +395,7 @@ class RosterHelperService {
                 .subdivisionId(employee.getSubdivisionId())
                 .divisionId(employee.getSubdivision() != null && employee.getSubdivision().getDivision() != null ? employee.getSubdivision().getDivision().getDivisionId() : null)
                 .jobTitle(employee.getJobTitle())
-                .bankAccount(employee.getBankAccount())
-                .taxPayerId(employee.getTaxPayerId())
-                .personalEmail(employee.getPersonalEmail())
                 .build());
-
-
     }
 
     /**

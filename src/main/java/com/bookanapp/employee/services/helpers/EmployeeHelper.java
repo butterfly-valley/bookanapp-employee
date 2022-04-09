@@ -28,6 +28,7 @@ public class EmployeeHelper {
     private final CommonHelper commonHelper;
     public final EmployeeService employeeService;
     private final EmployeeHelperService helperService;
+    private final RosterHelperService rosterHelperService;
 
     public Mono<ResponseEntity> currentEmployees(Integer page, Integer employeesPerPage, String employeeId, String subdivisionId, String divisionId){
         return this.commonHelper.getCurrentProviderId()
@@ -560,21 +561,7 @@ public class EmployeeHelper {
                                     })
                                     .switchIfEmpty(Mono.just(employee))
                             )
-                            .flatMap(employee -> {
-                                        if (employee.getSubdivisionId()  != null) {
-                                            return this.employeeService.getSubdivision(employee.getSubdivisionId())
-                                                    .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
-                                                            .flatMap(division -> {
-                                                                subdivision.setDivision(division);
-                                                                employee.setSubdivision(subdivision);
-                                                                return Mono.just(employee);
-                                                            }))
-                                                    .switchIfEmpty(Mono.defer(() -> Mono.just(employee)));
-                                        } else {
-                                            return Mono.just(employee);
-                                        }
-                                    }
-                            )
+                            .flatMap(this.rosterHelperService::setEmployeeSubdivision)
                             .flatMap(employee -> this.employeeService.getAuthorizedSchedules(employeeId)
                                     .flatMap(schedules -> {
                                         employee.setAuthorizedSchedules(schedules.stream().map(AuthorizedSchedule::getScheduleId).collect(Collectors.toList()));

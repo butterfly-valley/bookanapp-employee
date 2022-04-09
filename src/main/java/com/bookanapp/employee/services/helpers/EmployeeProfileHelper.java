@@ -19,7 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
 
 @Slf4j
@@ -31,6 +31,7 @@ public class EmployeeProfileHelper {
     private final EmployeeService employeeService;
     private final RosterService rosterService;
     private final EmployeeHelperService helperService;
+    private final RosterHelperService rosterHelperService;
 
     public Mono<Employee> loadEmployee(long employeeId) {
         return this.employeeService.getEmployee(employeeId)
@@ -60,24 +61,12 @@ public class EmployeeProfileHelper {
                         })
                         .switchIfEmpty(Mono.just(employee))
                 )
-                .flatMap(employee -> {
-                            if (employee.getSubdivisionId() != null) {
-                                return this.employeeService.getSubdivision(employee.getSubdivisionId())
-                                        .flatMap(subdivision -> this.employeeService.getDivision(subdivision.getDivisionId())
-                                                .flatMap(division -> {
-                                                    subdivision.setDivision(division);
-                                                    employee.setSubdivision(subdivision);
-                                                    return Mono.just(employee);
-                                                }))
-                                        .switchIfEmpty(Mono.defer(() -> Mono.just(employee)));
-                            } else {
-                                return Mono.just(employee);
-                            }
-                        }
-                );
+                .flatMap(this.rosterHelperService::setEmployeeSubdivision);
 
 
     }
+
+
 
     public Mono<EmployeeEntity> buildEmployeeEntity(Employee employee) {
 
