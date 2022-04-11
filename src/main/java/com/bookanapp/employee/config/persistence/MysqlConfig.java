@@ -16,8 +16,11 @@ import java.time.Duration;
 @Configuration
 public class MysqlConfig extends AbstractR2dbcConfiguration {
 
+    private final String HOST = "db";
+//    private final String HOST = "localhost";
+
     MySqlConnectionConfiguration configuration = MySqlConnectionConfiguration.builder()
-            .host("127.0.0.1")
+            .host(HOST)
             .user("root")
             .port(3306) // optional, default 3306
             .password("Dafundo1/") // optional, default null, null means has no password

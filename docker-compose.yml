@@ -1,0 +1,113 @@
+version: '3.8'
+
+networks:
+  discovery_ntw:
+  auth_ntw:
+  employee_ntw:
+  db_ntw:
+  provider_ntw:
+
+volumes:
+  mysql_vol:
+
+services:
+  discovery-api:
+    ports:
+      - 8081:8081
+    build:
+      context: ../booknanapp-discovery
+      dockerfile: Dockerfile
+    networks:
+      - discovery_ntw
+      - auth_ntw
+      - employee_ntw
+      - db_ntw
+      - provider_ntw
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081" ]
+  auth-api:
+    ports:
+      - 8082:8082
+    build:
+      context: ../bookanapp-auth
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    networks:
+      - db_ntw
+      - discovery_ntw
+      - auth_ntw
+      - employee_ntw
+      - provider_ntw
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8082" ]
+  provider-api:
+    networks:
+      - auth_ntw
+      - provider_ntw
+      - discovery_ntw
+      - employee_ntw
+      - db_ntw
+    ports:
+      - 8083:8083
+    build:
+      context: ../bookanapp-provider
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+      - auth-api
+      - employee-api
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8084" ]
+  employee-api:
+    networks:
+      - db_ntw
+      - auth_ntw
+      - discovery_ntw
+      - employee_ntw
+      - provider_ntw
+    ports:
+      - 8087:8087
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    depends_on:
+      - auth-api
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8084" ]
+  db:
+    image: mysql
+#    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - db_ntw
+    environment:
+      MYSQL_ROOT_PASSWORD: Dafundo1/
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: /usr/bin/mysql --host=127.0.0.1 --user=root --password=Dafundo1/"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - ./mysql-dump:/docker-entrypoint-initdb.d
+#      - mysql_vol:/var/lib/mysql
+  nginx-proxy:
+    image: nginx:1.21.3
+    ports:
+      - 80:80
+      - 443:443
+    restart: unless-stopped
+    networks:
+      - db_ntw
+      - auth_ntw
+      - employee_ntw
+      - discovery_ntw
+    volumes:
+      - ./proxy-config/cripto:/cripto
+      - ./proxy-config/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - auth-api
+      - employee-api
+
+
