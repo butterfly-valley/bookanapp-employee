@@ -117,10 +117,11 @@ public class Forms {
     @Data
     @AllArgsConstructor
     static class TimeOffRequestNotificationForm {
-        Provider provider;
+        String locale;
         Employee employee;
         String recipient;
     }
+
 
 
     @Data

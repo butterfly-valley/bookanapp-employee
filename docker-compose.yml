@@ -6,107 +6,131 @@ networks:
   employee_ntw:
   db_ntw:
   provider_ntw:
+  kafka_ntw:
 
 volumes:
   mysql_vol:
 
 services:
-  discovery-api:
+#  discovery-api:
+#    ports:
+#      - 8081:8081
+#    build:
+#      context: ../booknanapp-discovery
+#      dockerfile: Dockerfile
+#    networks:
+#      - discovery_ntw
+#      - auth_ntw
+#      - employee_ntw
+#      - db_ntw
+#      - provider_ntw
+#      - kafka_ntw
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:8081" ]
+#  auth-api:
+#    ports:
+#      - 8082:8082
+#    build:
+#      context: ../bookanapp-auth
+#      dockerfile: Dockerfile
+#    depends_on:
+#      - db
+#      - kafka
+#    networks:
+#      - db_ntw
+#      - discovery_ntw
+#      - auth_ntw
+#      - employee_ntw
+#      - provider_ntw
+#      - kafka_ntw
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:8082" ]
+#  provider-api:
+#    networks:
+#      - auth_ntw
+#      - provider_ntw
+#      - discovery_ntw
+#      - employee_ntw
+#      - db_ntw
+#      - kafka_ntw
+#    ports:
+#      - 8083:8083
+#    build:
+#      context: ../bookanapp-provider
+#      dockerfile: Dockerfile
+#    depends_on:
+#      - db
+#      - auth-api
+#      - employee-api
+#      - kafka
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:8084" ]
+#  employee-api:
+#    networks:
+#      - db_ntw
+#      - auth_ntw
+#      - discovery_ntw
+#      - employee_ntw
+#      - provider_ntw
+#      - kafka_ntw
+#    ports:
+#      - 8087:8087
+#    build:
+#      context: ./
+#      dockerfile: Dockerfile
+#    depends_on:
+#      - auth-api
+#      - kafka
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:8084" ]
+#  db:
+#    image: mysql
+#    networks:
+#      - db_ntw
+#    environment:
+#      MYSQL_ROOT_PASSWORD:
+#    ports:
+#      - "3307:3306"
+#    healthcheck:
+#      test: /usr/bin/mysql --host=127.0.0.1 --user=root --password=Dafundo1/"
+#      interval: 30s
+#      timeout: 10s
+#      retries: 5
+#    volumes:
+#      - ./mysql-dump:/docker-entrypoint-initdb.d
+##      - mysql_vol:/var/lib/mysql
+#  nginx-proxy:
+#    image: nginx:1.21.3
+#    ports:
+#      - 80:80
+#      - 443:443
+#    restart: unless-stopped
+#    networks:
+#      - db_ntw
+#      - auth_ntw
+#      - employee_ntw
+#      - discovery_ntw
+#    volumes:
+#      - ./proxy-config/cripto:/cripto
+#      - ./proxy-config/conf.d:/etc/nginx/conf.d
+#    depends_on:
+#      - auth-api
+#      - employee-api
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
     ports:
-      - 8081:8081
-    build:
-      context: ../booknanapp-discovery
-      dockerfile: Dockerfile
-    networks:
-      - discovery_ntw
-      - auth_ntw
-      - employee_ntw
-      - db_ntw
-      - provider_ntw
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8081" ]
-  auth-api:
-    ports:
-      - 8082:8082
-    build:
-      context: ../bookanapp-auth
-      dockerfile: Dockerfile
+      - "2181:2181"
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
     depends_on:
-      - db
-    networks:
-      - db_ntw
-      - discovery_ntw
-      - auth_ntw
-      - employee_ntw
-      - provider_ntw
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8082" ]
-  provider-api:
-    networks:
-      - auth_ntw
-      - provider_ntw
-      - discovery_ntw
-      - employee_ntw
-      - db_ntw
+      - zookeeper
     ports:
-      - 8083:8083
-    build:
-      context: ../bookanapp-provider
-      dockerfile: Dockerfile
-    depends_on:
-      - db
-      - auth-api
-      - employee-api
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8084" ]
-  employee-api:
-    networks:
-      - db_ntw
-      - auth_ntw
-      - discovery_ntw
-      - employee_ntw
-      - provider_ntw
-    ports:
-      - 8087:8087
-    build:
-      context: ./
-      dockerfile: Dockerfile
-    depends_on:
-      - auth-api
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8084" ]
-  db:
-    image: mysql
-    networks:
-      - db_ntw
+      - "9092:9092"
     environment:
-      MYSQL_ROOT_PASSWORD:
-    ports:
-      - "3307:3306"
-    healthcheck:
-      test: /usr/bin/mysql --host=127.0.0.1 --user=root --password=Dafundo1/"
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    volumes:
-      - ./mysql-dump:/docker-entrypoint-initdb.d
-#      - mysql_vol:/var/lib/mysql
-  nginx-proxy:
-    image: nginx:1.21.3
-    ports:
-      - 80:80
-      - 443:443
-    restart: unless-stopped
-    networks:
-      - db_ntw
-      - auth_ntw
-      - employee_ntw
-      - discovery_ntw
-    volumes:
-      - ./proxy-config/cripto:/cripto
-      - ./proxy-config/conf.d:/etc/nginx/conf.d
-    depends_on:
-      - auth-api
-      - employee-api
+      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
 
 

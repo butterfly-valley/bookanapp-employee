@@ -7,6 +7,7 @@ import com.bookanapp.employee.services.EmployeeService;
 import com.bookanapp.employee.services.RosterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -29,6 +30,7 @@ class RosterHelperService {
     private final CommonHelper commonHelper;
     private final EmployeeService employeeService;
     private final DateRangeService dateRange;
+    private final KafkaTemplate<String, Forms.TimeOffRequestNotificationForm> timeOffRequestNotificationTemplate;
 
 
     Mono<List<RosterEntity>> getRosterSlotEntities(List<LocalDate> dateRange, List<Employee> employees) {
@@ -230,27 +232,31 @@ class RosterHelperService {
 
 
 
-    Mono<String> sendTimeOffApprovalResponseEmail(Employee employee, boolean approved) {
-        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.providerServiceUrl + "/provider/get/" + employee.getProviderId());
-
-        return client.get()
-                .retrieve()
-                .bodyToMono(Provider.class)
-                .flatMap(provider -> {
-                    String url = commonHelper.notificationServiceUrl + "/email/employee/timeoff/approve";
-                    if (!approved)
-                        url = url + "?deny=true";
-                    var emailClient = this.commonHelper.buildAPIAccessWebClient(url);
-                    var form = new Forms.TimeOffRequestNotificationForm(provider, employee, employee.getUsername());
-                    return emailClient.post()
-                            .body(Mono.just(form), Forms.TimeOffRequestNotificationForm.class)
-                            .retrieve()
-                            .bodyToMono(String.class)
-                            .flatMap(message -> Mono.just("success"))
-                            .onErrorResume(e -> Mono.just("success"));
-                });
-
-    }
+//    Mono<String> sendTimeOffApprovalResponseEmail(Employee employee, boolean approved) {
+//        var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.providerServiceUrl + "/provider/get/" + employee.getProviderId());
+//
+//        timeOffRequestNotificationTemplate.send("", )
+//
+//
+//
+//        return client.get()
+//                .retrieve()
+//                .bodyToMono(Provider.class)
+//                .flatMap(provider -> {
+//                    String url = commonHelper.notificationServiceUrl + "/email/employee/timeoff/approve";
+//                    if (!approved)
+//                        url = url + "?deny=true";
+//                    var emailClient = this.commonHelper.buildAPIAccessWebClient(url);
+//                    var form = new Forms.TimeOffRequestNotificationForm(provider, employee, employee.getUsername());
+//                    return emailClient.post()
+//                            .body(Mono.just(form), Forms.TimeOffRequestNotificationForm.class)
+//                            .retrieve()
+//                            .bodyToMono(String.class)
+//                            .flatMap(message -> Mono.just("success"))
+//                            .onErrorResume(e -> Mono.just("success"));
+//                });
+//
+//    }
 
 
     Mono<ResponseEntity<Forms.GenericResponse>> publishOrDeleteEmployeeRosterSlots(List<Employee> employees, List<LocalDate> range, boolean delete, boolean unpublish) {
