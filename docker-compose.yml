@@ -77,11 +77,10 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:8084" ]
   db:
     image: mysql
-#    command: --default-authentication-plugin=mysql_native_password
     networks:
       - db_ntw
     environment:
-      MYSQL_ROOT_PASSWORD: Dafundo1/
+      MYSQL_ROOT_PASSWORD:
     ports:
       - "3307:3306"
     healthcheck:
