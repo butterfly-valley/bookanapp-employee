@@ -109,48 +109,29 @@ public class EmployeeHelperService {
     }
 
 
-    Mono<List<Employee>> getEmployees(String employeeId, String subdivisionId, String divisionId, long providerId, List<Employee> employees) {
+    Mono<List<Employee>> getEmployees(Long employeeId, Long subdivisionId, Long divisionId, long providerId, List<Employee> employees) {
         if (employeeId != null) {
-            employees = employees.stream()
-                    .filter(employee ->  employee.getEmployeeId() == Long.parseLong(employeeId))
-                    .sorted(Comparator.comparing(Employee::getName,
-                            Comparator.comparing(String::toLowerCase)))
-                    .collect(Collectors.toList());
+            return this.employeeService.getEmployeeByProviderId(employeeId, providerId)
+                    .switchIfEmpty(Mono.just(new Employee()))
+                    .flatMap(employee -> {
+                        List<Employee> emps = new ArrayList<>();
+
+                        if (employee.getEmployeeId() != null)
+                            emps.add(employee);
+
+                        return Mono.just(emps);
+                    });
         }
 
         if (subdivisionId != null) {
-            employees = employees.stream()
-                    .filter(employee ->  employee.getSubdivisionId() != null && employee.getSubdivisionId() == Long.parseLong(subdivisionId))
-                    .sorted(Comparator.comparing(Employee::getName,
-                            Comparator.comparing(String::toLowerCase)))
-                    .collect(Collectors.toList());
+            return this.employeeService.getAllSubdivisionEmployees(providerId, subdivisionId);
         }
 
         if (divisionId != null) {
-            List<Employee> finalEmployees = employees;
-            return employeeService.getDivision(Long.parseLong(divisionId))
-                    .flatMap(division -> {
-
-                        if (division.getProviderId() == providerId) {
-                            return this.employeeService.getSubdivisions(division.getDivisionId())
-                                    .flatMap(subdivisions -> Mono.just(subdivisions.stream()
-                                            .map(Subdivision::getSubdivisionId)
-                                            .collect(Collectors.toList()))
-                                    )
-                                    .flatMap(subdivisionsIds -> Mono.just(finalEmployees.stream()
-                                            .filter(employee ->  employee.getSubdivisionId() !=null && subdivisionsIds.contains(employee.getSubdivisionId()))
-                                            .sorted(Comparator.comparing(Employee::getName,
-                                                    Comparator.comparing(String::toLowerCase)))
-                                            .collect(Collectors.toList())));
-                        } else {
-                            return Mono.just(new ArrayList<>());
-                        }
-
-
-                    });
+            return this.employeeService.getAllDivisionEmployees(providerId, divisionId);
 
         } else {
-            return Mono.just(employees);
+            return this.employeeService.findAllUnassignedEmployees(providerId);
         }
 
     }

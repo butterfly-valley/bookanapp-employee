@@ -2,7 +2,6 @@ package com.bookanapp.employee.entities;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.springframework.data.relational.core.mapping.Table;
 
 
@@ -43,7 +42,7 @@ public class EmployeeRosterSlot extends RosterSlot {
 
         private final int type;
 
-        private TimeOffBalanceType(int type) {
+        TimeOffBalanceType(int type) {
             this.type = type;
         }
 

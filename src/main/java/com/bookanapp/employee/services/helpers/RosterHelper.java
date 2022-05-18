@@ -476,7 +476,8 @@ public class RosterHelper {
                                                 slot.setTimeOffApproved(!deny);
                                                 slot.setTimeOffDenied(deny);
                                                 return this.rosterService.saveRosterSlot(slot)
-                                                        .then(this.rosterHelperService.sendTimeOffApprovalResponseEmail(employee, !deny));
+                                                        .then(Mono.just(""));
+//                                                        .then(this.rosterHelperService.sendTimeOffApprovalResponseEmail(employee, !deny));
 
                                             } else {
                                                 return Mono.just("invalidSlot");

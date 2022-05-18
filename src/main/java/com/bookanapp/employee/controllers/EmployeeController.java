@@ -30,9 +30,9 @@ public class EmployeeController {
 
     @GetMapping("/get")
     public Mono<? extends ResponseEntity> currentEmployees(@RequestParam("page") Integer page, @RequestParam("employeesPerPage") Integer employeesPerPage,
-                                                           @RequestParam(value = "employeeId", required = false) String employeeId,
-                                                           @RequestParam(value = "subdivisionId", required = false) String subdivisionId,
-                                                           @RequestParam(value = "divisionId", required = false) String divisionId) {
+                                                           @RequestParam(value = "employeeId", required = false) Long employeeId,
+                                                           @RequestParam(value = "subdivisionId", required = false) Long subdivisionId,
+                                                           @RequestParam(value = "divisionId", required = false) Long divisionId) {
 
         return this.employeeHelper.currentEmployees(page, employeesPerPage, employeeId, subdivisionId, divisionId)
                 .onErrorResume(e -> {

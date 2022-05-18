@@ -32,6 +32,10 @@ public class EmployeeService {
         return this.employeeRepository.getByEmployeeId(employeeId);
     }
 
+    public Mono<Employee> getEmployeeByProviderId(long employeeId, long providerId) {
+        return this.employeeRepository.getByEmployeeIdAndProviderId(employeeId, providerId);
+    }
+
     public Mono<Employee> getEmployeeByUsername(long providerId, String username) {
         return this.employeeRepository.getByProviderIdAndUsername(providerId, username);
     }
@@ -74,10 +78,24 @@ public class EmployeeService {
         return this.employeeRepository.getAllByProviderId(providerId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
 
-
-    public Mono<List<Employee>> getAllEmployees(long providerId, Pageable pageable) {
-        return this.employeeRepository.getAllByProviderId(providerId, pageable).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
+    public Mono<List<Employee>> getAllSubdivisionEmployees(long providerId, long subdivisionId) {
+        return this.employeeRepository.getAllByProviderIdAndSubdivisionId(providerId, subdivisionId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));
     }
+
+    public Mono<List<Employee>> getAllDivisionEmployees(long providerId, long divisionId) {
+        return this.divisionRepository.findById(divisionId)
+                .flatMap(division -> {
+                    if (division.getProviderId() == providerId) {
+                        return this.subdivisionRepository.findAllByDivisionId(divisionId)
+                                .flatMap(subdivision -> this.employeeRepository.getAllBySubdivisionId(subdivision.getSubdivisionId()))
+                                .collectList();
+                    } else {
+                        return Mono.empty();
+                    }
+                });
+    }
+
+
 
     public Mono<List<Employee>> findAllUnassignedEmployees(long providerId) {
         return this.employeeRepository.getAllByProviderIdAndSubdivisionIdIsNull(providerId).collectList().switchIfEmpty(Mono.defer(() -> Mono.just(new ArrayList<>())));

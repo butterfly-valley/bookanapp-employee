@@ -30,7 +30,7 @@ public class EmployeeHelper {
     private final EmployeeHelperService helperService;
     private final RosterHelperService rosterHelperService;
 
-    public Mono<ResponseEntity> currentEmployees(Integer page, Integer employeesPerPage, String employeeId, String subdivisionId, String divisionId){
+    public Mono<ResponseEntity> currentEmployees(Integer page, Integer employeesPerPage, Long employeeId, Long subdivisionId, Long divisionId){
         return this.commonHelper.getCurrentProviderId()
                 .flatMap(providerId -> this.employeeService.getAllEmployees(providerId)
                         .flatMap(employees ->  this.helperService.getEmployees(employeeId, subdivisionId, divisionId, providerId, employees)
