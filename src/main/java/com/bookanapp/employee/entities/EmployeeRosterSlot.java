@@ -33,22 +33,13 @@ public class EmployeeRosterSlot extends RosterSlot {
 
 
     public enum TimeOffBalanceType{
-        VACS(0),
-        VACSROLLOVER(1),
-        BANK(2),
-        BANKROLLOVER(3),
-        COMP(4),
-        COMPROLLOVER(5);
+        VACS,
+        VACSROLLOVER,
+        BANK,
+        BANKROLLOVER,
+        COMP,
+        COMPROLLOVER;
 
-        private final int type;
-
-        TimeOffBalanceType(int type) {
-            this.type = type;
-        }
-
-        public int getHierarchy() {
-            return type;
-        }
     }
 
 

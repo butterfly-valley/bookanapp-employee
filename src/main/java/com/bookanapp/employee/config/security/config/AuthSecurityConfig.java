@@ -43,22 +43,23 @@ public class AuthSecurityConfig {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain (ServerHttpSecurity security) throws Exception {
 
-        return security.exceptionHandling()
-                .authenticationEntryPoint((swe, e) ->
-                        Mono.fromRunnable(() -> swe.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED))
-                ).accessDeniedHandler((swe, e) ->
-                        Mono.fromRunnable(() -> swe.getResponse().setStatusCode(HttpStatus.FORBIDDEN))
-                ).and()
+        return security
                 .csrf().disable()
                 .formLogin().disable()
                 .httpBasic().disable()
+                .authorizeExchange()
+                .pathMatchers("/search/**", "/roster/**").permitAll().and()
                 .authenticationManager(authenticationManager)
                 .securityContextRepository(securityContextRepository)
                 .authorizeExchange()
                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                .pathMatchers("/search/**").permitAll()
                 .anyExchange().authenticated()
-                .and().build();
+                .and().exceptionHandling()
+                .authenticationEntryPoint((swe, e) ->
+                        Mono.fromRunnable(() -> swe.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED))
+                ).accessDeniedHandler((swe, e) ->
+                        Mono.fromRunnable(() -> swe.getResponse().setStatusCode(HttpStatus.FORBIDDEN))
+                ).and().build();
 
     }
 }
