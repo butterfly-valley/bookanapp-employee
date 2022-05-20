@@ -95,7 +95,7 @@ public class RosterHelper {
                     if (slotEntities != null) {
                         return Mono.just(ResponseEntity.ok(slotEntities));
                     } else {
-                        return Mono.just(ResponseEntity.ok(new ArrayList<>()));
+                        return Mono.just(ResponseEntity.ok(Collections.emptyList()));
                     }
                 });
     }
@@ -131,8 +131,11 @@ public class RosterHelper {
                                     })));
         }
 
-        return Mono.just(ResponseEntity.ok(slotEntities));
-
+        if (slotEntities != null) {
+            return slotEntities.flatMap(rosterEntities -> Mono.just(ResponseEntity.ok(rosterEntities)));
+        } else {
+            return Mono.just(ResponseEntity.ok(Collections.emptyList()));
+        }
     }
 
 

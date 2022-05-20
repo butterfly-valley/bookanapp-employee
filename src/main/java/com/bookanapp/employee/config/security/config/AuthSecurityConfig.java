@@ -47,8 +47,12 @@ public class AuthSecurityConfig {
                 .csrf().disable()
                 .formLogin().disable()
                 .httpBasic().disable()
-                .authorizeExchange()
-                .pathMatchers("/search/**", "/roster/**").permitAll().and()
+                .authorizeExchange(authorizeExchangeSpec -> {
+                    authorizeExchangeSpec
+                            .pathMatchers("/search/**", "/roster/**").permitAll();
+
+                })
+//                .pathMatchers("/search/**", "/roster/**").permitAll().and()
                 .authenticationManager(authenticationManager)
                 .securityContextRepository(securityContextRepository)
                 .authorizeExchange()

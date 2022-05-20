@@ -1,5 +1,6 @@
 package com.bookanapp.employee.entities;
 
+import com.bookanapp.employee.services.helpers.Forms;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.data.relational.core.mapping.Table;
@@ -19,7 +20,7 @@ public class EmployeeRosterSlot extends RosterSlot {
     private boolean halfDayOff = false;
     private boolean timeOffApproved = false;
     private boolean timeOffDenied = false;
-    private int balanceType;
+    private TimeOffBalanceType balanceType;
     private boolean sickLeave = false;
     private boolean maternityLeave = false;
 

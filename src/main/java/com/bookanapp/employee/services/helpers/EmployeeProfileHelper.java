@@ -193,54 +193,8 @@ public class EmployeeProfileHelper {
                     return this.employeeService.getTimeOffBalance(employee.getEmployeeId())
                             .flatMap(balance -> {
                                 // check if there is enough day balance and deduct
-                                for (EmployeeRosterSlot.TimeOffBalanceType timeOffBalanceType : EmployeeRosterSlot.TimeOffBalanceType.values()) {
-                                    if (timeOffBalanceType.toString().equals(timeOffRequestForm.balanceType)) {
-                                        switch (timeOffRequestForm.balanceType) {
-                                            case "VACS":
-                                                if (daysRequested > balance.getVacationDays()) {
-                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
-                                                } else {
-                                                    balance.setVacationDays(balance.getVacationDays() - daysRequested);
-                                                }
-                                                break;
-                                            case "VACSROLLOVER":
-                                                if (daysRequested > balance.getVacationRolloverDays()) {
-                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
-                                                } else {
-                                                    balance.setVacationRolloverDays(balance.getVacationRolloverDays() - daysRequested);
-                                                }
-                                                break;
-                                            case "BANK":
-                                                if (daysRequested > balance.getComplimentaryBankHolidayDays()) {
-                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
-                                                } else {
-                                                    balance.setComplimentaryBankHolidayDays(balance.getComplimentaryBankHolidayDays() - daysRequested);
-                                                }
-                                                break;
-                                            case "BANKROLLOVER":
-                                                if (daysRequested > balance.getComplimentaryBankHolidayRolloverDays()) {
-                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
-                                                } else {
-                                                    balance.setComplimentaryBankHolidayRolloverDays(balance.getComplimentaryBankHolidayRolloverDays() - daysRequested);
-                                                }
-                                                break;
-                                            case "COMP":
-                                                if (daysRequested > balance.getVacationDays()) {
-                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
-                                                } else {
-                                                    balance.setCompensationDays(balance.getCompensationDays() - daysRequested);
-                                                }
-                                                break;
-                                            default:
-                                                if (daysRequested > balance.getVacationDays()) {
-                                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
-                                                } else {
-                                                    balance.setCompensationRolloverDays(balance.getCompensationRolloverDays() - daysRequested);
-                                                }
-
-                                        }
-                                    }
-                                }
+                                Mono<ResponseEntity<Forms.GenericResponse>> insufficientBalance = deductDaysFromBalance(timeOffRequestForm.balanceType, daysRequested, balance);
+                                if (insufficientBalance != null) return insufficientBalance;
 
                                 List<EmployeeRosterSlot> slotList = new ArrayList<>();
 
@@ -248,7 +202,7 @@ public class EmployeeProfileHelper {
                                     EmployeeRosterSlot slot = new EmployeeRosterSlot(timeOffRequestForm.initialDate, LocalTime.MIN, LocalTime.MAX);
                                     slot.setEmployeeId(employee.getEmployeeId());
                                     slot.setTimeOff(true);
-                                    slot.setBalanceType(EmployeeRosterSlot.TimeOffBalanceType.valueOf(timeOffRequestForm.balanceType).ordinal());
+                                    slot.setBalanceType(EmployeeRosterSlot.TimeOffBalanceType.valueOf(timeOffRequestForm.balanceType));
                                     slot.setColor("gray");
                                     slot.setHalfDayOff(true);
                                     slotList.add(slot);
@@ -259,7 +213,7 @@ public class EmployeeProfileHelper {
                                         EmployeeRosterSlot slot = new EmployeeRosterSlot(date, LocalTime.MIN, LocalTime.MAX);
                                         slot.setEmployeeId(employee.getEmployeeId());
                                         slot.setTimeOff(true);
-                                        slot.setBalanceType(EmployeeRosterSlot.TimeOffBalanceType.valueOf(timeOffRequestForm.balanceType).ordinal());
+                                        slot.setBalanceType(EmployeeRosterSlot.TimeOffBalanceType.valueOf(timeOffRequestForm.balanceType));
                                         slot.setColor("gray");
                                         slotList.add(slot);
                                     }
@@ -267,13 +221,61 @@ public class EmployeeProfileHelper {
 
                                 return this.rosterService.saveRosterSlots(slotList)
                                         .then(this.employeeService.saveTimeOffBalance(balance))
-                                        .then(Mono.just(ResponseEntity.ok("ok")));
+                                        .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
 
                             });
 
 
                 });
     }
+
+    public Mono<ResponseEntity> submitTimeOffList(Forms.TimeOffRequestDateListForm timeOffRequestForm) {
+        return this.commonHelper.getCurrentEmployee()
+                .flatMap(employee -> {
+                    float daysRequested = timeOffRequestForm.dates.size();
+
+                    // check if only one half day is requested
+                    if (daysRequested > 1 && this.hasDecimal(daysRequested))
+                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("noDecimalsAllowed")));
+
+                    if (timeOffRequestForm.halfDay)
+                        daysRequested = daysRequested/2;
+
+                    // check if only one half day is requested
+                    if (daysRequested > 1 && this.hasDecimal(daysRequested))
+                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("noDecimalsAllowed")));
+
+                    float finalDaysRequested = daysRequested;
+                    return this.employeeService.getTimeOffBalance(employee.getEmployeeId())
+                            .flatMap(balance -> {
+                                // check if there is enough day balance and deduct
+                                Mono<ResponseEntity<Forms.GenericResponse>> insufficientBalance = deductDaysFromBalance(timeOffRequestForm.balanceType, finalDaysRequested, balance);
+                                if (insufficientBalance != null) return insufficientBalance;
+                                List<EmployeeRosterSlot> slotList = new ArrayList<>();
+
+                                timeOffRequestForm.dates.forEach(date -> {
+                                    EmployeeRosterSlot slot = new EmployeeRosterSlot(date, LocalTime.MIN, LocalTime.MAX);
+                                    slot.setEmployeeId(employee.getEmployeeId());
+                                    slot.setTimeOff(true);
+                                    slot.setHalfDayOff(timeOffRequestForm.halfDay);
+                                    slot.setBalanceType(EmployeeRosterSlot.TimeOffBalanceType.valueOf(timeOffRequestForm.balanceType));
+                                    slot.setColor("gray");
+                                    slotList.add(slot);
+
+                                });
+
+
+                                return this.rosterService.saveRosterSlots(slotList)
+                                        .then(this.employeeService.saveTimeOffBalance(balance))
+                                        .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+
+                            });
+
+
+                });
+    }
+
+
 
     public Mono<ResponseEntity> deleteTimeOff(Forms.DeleteForm deleteForm) {
         return this.commonHelper.getCurrentEmployee()
@@ -283,19 +285,19 @@ public class EmployeeProfileHelper {
                                         .flatMap(slot -> {
                                             if (slot.getEmployeeId() == employee.getEmployeeId()) {
                                                 switch (slot.getBalanceType()) {
-                                                    case 0:
+                                                    case VACS:
                                                         balance.setVacationDays(balance.getVacationDays() + (slot.isHalfDayOff() ? 0.5f : 1.0f));
                                                         break;
-                                                    case 1:
+                                                    case VACSROLLOVER:
                                                         balance.setVacationRolloverDays(balance.getVacationRolloverDays() + (slot.isHalfDayOff() ? 0.5f : 1.0f));
                                                         break;
-                                                    case 2:
+                                                    case BANK:
                                                         balance.setComplimentaryBankHolidayDays(balance.getComplimentaryBankHolidayDays() + (slot.isHalfDayOff() ? 0.5f : 1.0f));
                                                         break;
-                                                    case 3:
+                                                    case BANKROLLOVER:
                                                         balance.setComplimentaryBankHolidayRolloverDays(balance.getComplimentaryBankHolidayRolloverDays()  + (slot.isHalfDayOff() ? 0.5f : 1.0f));
                                                         break;
-                                                    case 4:
+                                                    case COMP:
                                                         balance.setCompensationDays(balance.getCompensationDays()  + (slot.isHalfDayOff() ? 0.5f : 1.0f));
                                                         break;
                                                     default:
@@ -315,7 +317,7 @@ public class EmployeeProfileHelper {
                                         return Mono.just(ResponseEntity.ok("invalidSlot"));
                                     } else {
                                         return this.employeeService.saveTimeOffBalance(balance)
-                                                .then(Mono.just(ResponseEntity.ok("ok")));
+                                                .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
                                     }
                                 })
                         ));
@@ -531,6 +533,58 @@ public class EmployeeProfileHelper {
         if (address.getEmployeeId() == null)
             address.setEmployeeId(employeeId);
 
+    }
+
+    private Mono<ResponseEntity<Forms.GenericResponse>> deductDaysFromBalance(String balanceType, float daysRequested, TimeOffBalance balance) {
+        for (EmployeeRosterSlot.TimeOffBalanceType timeOffBalanceType : EmployeeRosterSlot.TimeOffBalanceType.values()) {
+            if (timeOffBalanceType.toString().equals(balanceType)) {
+                switch (balanceType) {
+                    case "VACS":
+                        if (daysRequested > balance.getVacationDays()) {
+                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
+                        } else {
+                            balance.setVacationDays(balance.getVacationDays() - daysRequested);
+                        }
+                        break;
+                    case "VACSROLLOVER":
+                        if (daysRequested > balance.getVacationRolloverDays()) {
+                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
+                        } else {
+                            balance.setVacationRolloverDays(balance.getVacationRolloverDays() - daysRequested);
+                        }
+                        break;
+                    case "BANK":
+                        if (daysRequested > balance.getComplimentaryBankHolidayDays()) {
+                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
+                        } else {
+                            balance.setComplimentaryBankHolidayDays(balance.getComplimentaryBankHolidayDays() - daysRequested);
+                        }
+                        break;
+                    case "BANKROLLOVER":
+                        if (daysRequested > balance.getComplimentaryBankHolidayRolloverDays()) {
+                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
+                        } else {
+                            balance.setComplimentaryBankHolidayRolloverDays(balance.getComplimentaryBankHolidayRolloverDays() - daysRequested);
+                        }
+                        break;
+                    case "COMP":
+                        if (daysRequested > balance.getVacationDays()) {
+                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
+                        } else {
+                            balance.setCompensationDays(balance.getCompensationDays() - daysRequested);
+                        }
+                        break;
+                    default:
+                        if (daysRequested > balance.getVacationDays()) {
+                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("insufficientBalance")));
+                        } else {
+                            balance.setCompensationRolloverDays(balance.getCompensationRolloverDays() - daysRequested);
+                        }
+
+                }
+            }
+        }
+        return null;
     }
 
 }

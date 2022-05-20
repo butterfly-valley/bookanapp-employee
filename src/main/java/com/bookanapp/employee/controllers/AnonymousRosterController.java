@@ -12,7 +12,7 @@ import reactor.core.publisher.Mono;
 @CrossOrigin()
 @RequiredArgsConstructor
 @Slf4j
-@RequestMapping("/roster")
+@RequestMapping("roster")
 public class AnonymousRosterController {
 
     private final RosterHelper rosterHelper;

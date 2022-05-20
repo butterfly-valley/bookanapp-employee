@@ -80,6 +80,20 @@ public class EmployeeProfileController {
                 });
     }
 
+    @PostMapping("/submit/time-off/list")
+    public Mono<? extends ResponseEntity> submitTimeOffList(@RequestBody @Valid Mono<Forms.TimeOffRequestDateListForm> timeOffRequestFormMono) {
+        return timeOffRequestFormMono
+                .flatMap(this.employeeProfileHelper::submitTimeOffList)
+                .onErrorResume(e -> {
+                    if (e instanceof WebExchangeBindException) {
+                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("bindingError")));
+                    } else {
+                        log.error("Error submitting time off request, error: " + e.getMessage());
+                        return Mono.just(new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
+                    }
+                });
+    }
+
     @PostMapping("/delete/time-off")
     public Mono<? extends ResponseEntity> deleteTimeOff(@RequestBody @Valid Mono<Forms.DeleteForm> deleteFormMono) {
         return deleteFormMono

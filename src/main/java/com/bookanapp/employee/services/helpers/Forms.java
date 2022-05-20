@@ -115,6 +115,16 @@ public class Forms {
     }
 
     @Data
+    public static class TimeOffRequestDateListForm{
+        @NotNull
+        List<LocalDate> dates;
+        @NotNull
+        String balanceType;
+        boolean halfDay;
+    }
+
+
+    @Data
     @AllArgsConstructor
     static class TimeOffRequestNotificationForm {
         String locale;

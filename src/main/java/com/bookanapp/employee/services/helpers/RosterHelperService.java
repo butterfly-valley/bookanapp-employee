@@ -18,6 +18,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
@@ -49,19 +50,19 @@ class RosterHelperService {
 
     Mono<List<RosterEntity>> getEmployeeRoster(long employeeId, List<LocalDate> dateRange, boolean showTimeOff) {
 
-        if (dateRange.size()<40) {
+        if (dateRange.size()<50) {
             return this.commonHelper.getCurrentProviderId()
                     .flatMap(providerId -> this.employeeService.getEmployee(employeeId)
                             .flatMap(employee -> {
                                 if (employee.getProviderId() == providerId) {
                                     return getEmployeeRosterEntities(employeeId, dateRange, showTimeOff, employee, false);
                                 } else {
-                                    return Mono.just(new ArrayList<>());
+                                    return Mono.just(Collections.emptyList());
                                 }
                             })
                     );
         } else {
-            return Mono.just(new ArrayList<>());
+            return Mono.just(Collections.emptyList());
         }
 
     }
@@ -73,7 +74,7 @@ class RosterHelperService {
                     .flatMap(employee -> getEmployeeRosterEntities(employeeId, dateRange, false, employee, true));
 
         } else {
-            return Mono.just(new ArrayList<>());
+            return Mono.just(Collections.emptyList());
         }
 
     }
@@ -108,7 +109,7 @@ class RosterHelperService {
                                     if (division.getProviderId() == providerId) {
                                         return this.getSubdivisionRosterEntities(dateRange, subdivisionId);
                                     } else {
-                                        return Mono.just(new ArrayList<>());
+                                        return Mono.just(Collections.emptyList());
                                     }
                                 }
 
@@ -347,7 +348,7 @@ class RosterHelperService {
                                     if (division.getProviderId() == providerId || anonymous) {
                                         return this.employeeService.findEmployeesBySubdivision(subdivisionId);
                                     } else {
-                                        return Mono.just(new ArrayList<>());
+                                        return Mono.just(Collections.emptyList());
                                     }
                                 }
                         )
@@ -533,7 +534,7 @@ class RosterHelperService {
                                     return this.employeeService.getSubdivisions(divisionId)
                                             .flatMap(this.employeeService::findAllSubdivisionEmployees);
                                 } else {
-                                    return Mono.just(new ArrayList<>());
+                                    return Mono.just(Collections.emptyList());
                                 }
                             }
                     );
@@ -583,7 +584,7 @@ class RosterHelperService {
                         return Mono.just(true);
                     } else if (userDetails instanceof EmployeeDetails) {
                         return this.employeeService.getAuthorizedRosters(((EmployeeDetails) userDetails).getId())
-                                .switchIfEmpty(Mono.just(new ArrayList<>()))
+                                .switchIfEmpty(Mono.just(Collections.emptyList()))
                                 .flatMap(rosterList -> {
                                     if (rosterList.size()==0) {
                                         return Mono.just(true);
