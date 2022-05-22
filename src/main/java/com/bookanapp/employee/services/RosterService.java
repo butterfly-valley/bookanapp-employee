@@ -4,6 +4,7 @@ import com.bookanapp.employee.entities.*;
 import com.bookanapp.employee.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDate;
@@ -54,6 +55,11 @@ public class RosterService {
     public Mono<EmployeeRosterSlot> findSlot(long slotId) {
         return this.rosterSlotRepository.findById(slotId);
     }
+
+    public Flux<EmployeeRosterSlot> findEmployeeSlots(List<Long> ids) {
+        return this.rosterSlotRepository.findAllById(ids);
+    }
+
 
     public Mono<Void> deleteSlot(EmployeeRosterSlot slot) {
         return this.rosterSlotRepository.delete(slot);

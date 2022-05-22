@@ -14,6 +14,7 @@ import reactor.core.publisher.Mono;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -471,27 +472,20 @@ public class RosterHelper {
 
     public Mono<ResponseEntity> approveTimeOff(Forms.DeleteForm deleteForm, boolean deny){
         return this.commonHelper.getCurrentProviderId()
-                .flatMap(providerId -> Flux.fromIterable(deleteForm.idsToDelete)
-                        .flatMap(id -> this.rosterService.findSlot(Long.parseLong(id))
-                                .flatMap(slot -> this.employeeService.getEmployee(slot.getEmployeeId())
-                                        .flatMap(employee -> {
-                                            if (employee.getProviderId() == providerId) {
-                                                slot.setTimeOffApproved(!deny);
-                                                slot.setTimeOffDenied(deny);
-                                                return this.rosterService.saveRosterSlot(slot)
-                                                        .then(Mono.just(""));
-//                                                        .then(this.rosterHelperService.sendTimeOffApprovalResponseEmail(employee, !deny));
-
-                                            } else {
-                                                return Mono.just("invalidSlot");
-                                            }
-
-                                        })
-                                )
-                        )
-                        .collectList()
-                        .flatMap(this.rosterHelperService::processMessages)
-                );
+                .flatMap(providerId -> this.rosterService.findSlot(Long.parseLong(deleteForm.idsToDelete.get(0)))
+                        .flatMap(firstSlot -> this.employeeService.getEmployeeByProviderId(firstSlot.getEmployeeId(), providerId))
+                        .flatMap(employee -> this.rosterService.findEmployeeSlots(deleteForm.idsToDelete.stream().map(Long::parseLong).collect(Collectors.toList()))
+                                .filter(slot -> slot.getEmployeeId() == employee.getEmployeeId())
+                                .flatMap(slot -> {
+                                    slot.setTimeOffApproved(!deny);
+                                    slot.setTimeOffDenied(deny);
+                                    return this.rosterService.saveRosterSlot(slot)
+                                            .then(Mono.just(""));
+                                })
+                                .collectList()
+//                                .flatMap(this.rosterHelperService::processMessages)
+                                .then(this.rosterHelperService.sendTimeOffApprovalResponseEmail(employee, !deny))
+                        ));
     }
 
     public Mono<ResponseEntity> approveAbsence(String requestId, String deny){

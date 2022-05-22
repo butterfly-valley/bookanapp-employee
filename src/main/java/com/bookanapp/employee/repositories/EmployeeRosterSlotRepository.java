@@ -12,5 +12,6 @@ public interface EmployeeRosterSlotRepository extends ReactiveCrudRepository<Emp
 
     Flux<EmployeeRosterSlot> findAllByEmployeeIdAndDate(long employeeId, LocalDate date);
     Flux<EmployeeRosterSlot> findAllByEmployeeIdAndDateIn(long employeeId, List<LocalDate> dates);
+
 }
 

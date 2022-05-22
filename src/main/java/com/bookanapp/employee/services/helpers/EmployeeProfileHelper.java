@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import reactor.core.publisher.Flux;
@@ -32,6 +33,7 @@ public class EmployeeProfileHelper {
     private final RosterService rosterService;
     private final EmployeeHelperService helperService;
     private final RosterHelperService rosterHelperService;
+    private final KafkaTemplate<String, Forms.TimeOffRequestNotificationForm> notifyVacationApproverTemplate;
 
     public Mono<Employee> loadEmployee(long employeeId) {
         return this.employeeService.getEmployee(employeeId)
@@ -221,7 +223,7 @@ public class EmployeeProfileHelper {
 
                                 return this.rosterService.saveRosterSlots(slotList)
                                         .then(this.employeeService.saveTimeOffBalance(balance))
-                                        .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+                                        .then(this.sendEmailToSupervisor(employee));
 
                             });
 
@@ -267,7 +269,7 @@ public class EmployeeProfileHelper {
 
                                 return this.rosterService.saveRosterSlots(slotList)
                                         .then(this.employeeService.saveTimeOffBalance(balance))
-                                        .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+                                        .then(this.sendEmailToSupervisor(employee));
 
                             });
 
@@ -439,15 +441,15 @@ public class EmployeeProfileHelper {
     public Mono<ResponseEntity> deletePhone(long id) {
         return this.commonHelper.getCurrentEmployee()
                 .flatMap(employee -> this.employeeService.getPhone(id)
-                .flatMap(phone -> {
-                    if (phone.getEmployeeId().equals(employee.getEmployeeId())) {
-                        return this.employeeService.deletePhone(phone)
-                                .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
+                        .flatMap(phone -> {
+                            if (phone.getEmployeeId().equals(employee.getEmployeeId())) {
+                                return this.employeeService.deletePhone(phone)
+                                        .then(Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success"))));
 
-                    } else {
-                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidPhone")));
-                    }
-                }));
+                            } else {
+                                return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("invalidPhone")));
+                            }
+                        }));
     }
 
     public Mono<ResponseEntity> deleteFamilyMember(long id) {
@@ -466,56 +468,42 @@ public class EmployeeProfileHelper {
 
 
 
-//    private Mono<ResponseEntity> sendEmailToSupervisor(Employee emp) {
-//        return this.employeeService.getEmployee(emp.getEmployeeId())
-//                .flatMap(currentEmployee -> this.employeeService.getAllEmployees(emp.getProviderId())
-//                        .flatMap(employees -> {
-//                            var client = this.commonHelper.buildAPIAccessWebClient(commonHelper.providerServiceUrl + "/provider/get/" + emp.getProviderId());
-//
-//                            return client.get()
-//                                    .retrieve()
-//                                    .bodyToMono(Provider.class)
-//                                    .flatMap(provider -> Flux.fromIterable(employees)
-//                                            .filter(employee -> !employee.getEmployeeId().equals(emp.getEmployeeId()))
-//                                            .flatMap(employee -> {
-//                                                var authClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/authorities/" +employee.getEmployeeId());
-//                                                return authClient.get()
-//                                                        .retrieve()
-//                                                        .bodyToMono(String[].class)
-//                                                        .flatMap(array -> {
-//                                                            var authorities = Arrays.asList(array);
-//                                                            if (authorities.contains("SUBPROVIDER_ROSTER") || authorities.contains("SUBPROVIDER_FULL")) {
-//                                                                return Mono.just(employee.getUsername());
-//                                                            } else {
-//                                                                return Mono.empty();
-//                                                            }
-//
-//                                                        });
-//                                            })
-//                                            .collectList()
-//                                            .flatMap(listOfAddresses -> {
-//                                                listOfAddresses.add(provider.getUsername());
-//                                                return Flux.fromIterable(listOfAddresses)
-//                                                        .flatMap(emailAddress -> {
-//                                                            var emailClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.notificationServiceUrl + "/email/employee/timeoff/notify");
-//                                                            var form = new Forms.TimeOffRequestNotificationForm(provider, currentEmployee, emailAddress);
-//                                                            return emailClient.post()
-//                                                                    .body(Mono.just(form), Forms.TimeOffRequestNotificationForm.class)
-//                                                                    .retrieve()
-//                                                                    .bodyToMono(String.class);
-//                                                        })
-//                                                        .collectList()
-//                                                        .flatMap(list -> Mono.just(ResponseEntity.ok("ok")));
-//                                            }))
-//                                    .cast(ResponseEntity.class)
-//                                    .onErrorResume(e -> {
-//                                                log.error("Error while sending time off request email, error: " + e.getMessage());
-//                                                return Mono.just(ResponseEntity.ok("ok"));
-//                                            }
-//                                    );
-//                        }));
-//
-//    }
+    private Mono<ResponseEntity> sendEmailToSupervisor(Employee emp) {
+        return this.employeeService.getEmployee(emp.getEmployeeId())
+                .flatMap(currentEmployee -> this.employeeService.getAllEmployees(emp.getProviderId())
+                        .flatMap(employees ->  this.commonHelper.fetchCurrentProvider()
+                                .flatMap(provider -> Flux.fromIterable(employees)
+                                        .filter(employee -> !employee.getEmployeeId().equals(emp.getEmployeeId()))
+                                        .flatMap(employee -> {
+                                            var authClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/authorities/" +employee.getEmployeeId());
+                                            return authClient.get()
+                                                    .retrieve()
+                                                    .bodyToMono(String[].class)
+                                                    .flatMap(array -> {
+                                                        var authorities = Arrays.asList(array);
+                                                        if (authorities.contains("SUBPROVIDER_ROSTER") || authorities.contains("SUBPROVIDER_FULL")) {
+                                                            return Mono.just(employee.getUsername());
+                                                        } else {
+                                                            return Mono.empty();
+                                                        }
+
+                                                    });
+                                        })
+                                        .collectList()
+                                        .flatMap(listOfAddresses -> {
+                                            listOfAddresses.add(provider.getUsername());
+                                            var form = new Forms.TimeOffRequestNotificationForm(provider.getLocale(), emp, listOfAddresses);
+                                            this.notifyVacationApproverTemplate.send("notifyVacationApprover", form);
+                                            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success")));
+                                        }))
+                                .cast(ResponseEntity.class)
+                                .onErrorResume(e -> {
+                                    log.error("Error while sending time off request email, error: " + e.getMessage());
+                                    return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("success")));
+                                })));
+
+
+    }
 
     private boolean hasDecimal(float in) {
         BigDecimal bigDecimal = new BigDecimal(String.valueOf(in));
@@ -585,6 +573,11 @@ public class EmployeeProfileHelper {
             }
         }
         return null;
+    }
+
+    private void senApprovalEmailNotification(long providerId, Employee employee) {
+
+
     }
 
 }

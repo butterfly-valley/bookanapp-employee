@@ -8,6 +8,7 @@ import com.bookanapp.employee.validation.Authorities;
 import com.bookanapp.employee.validation.IdToDelete;
 import com.bookanapp.employee.validation.Password;
 import lombok.*;
+import org.checkerframework.checker.units.qual.A;
 
 
 import javax.annotation.Nullable;
@@ -123,14 +124,6 @@ public class Forms {
         boolean halfDay;
     }
 
-
-    @Data
-    @AllArgsConstructor
-    static class TimeOffRequestNotificationForm {
-        String locale;
-        Employee employee;
-        String recipient;
-    }
 
 
 
@@ -393,6 +386,26 @@ public class Forms {
         String name;
         long id;
     }
+
+    @Data
+    @AllArgsConstructor
+    public static class TimeOffRequestNotificationForm {
+        String locale;
+        Employee employee;
+        List<String> recipient;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class TimeOffApprovalNotificationForm {
+        String locale;
+        String sender;
+        Employee employee;
+        boolean approved;
+
+    }
+
+
 
 
 
