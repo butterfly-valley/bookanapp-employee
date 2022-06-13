@@ -235,44 +235,21 @@ public class EmployeeHelper {
                                                 .retrieve()
                                                 .bodyToMono(String.class)
                                                 .flatMap(response -> {
-                                                    if (response.equals("ok")) {
-                                                        return this.helperService.setAuthorizedSchedules(form, providerId, id, form.allSchedules)
-                                                                .flatMap(authorizedSchedules -> this.helperService.setAuthorizedRosters(form, providerId)
-                                                                        .flatMap(authorizedRosters -> this.helperService.setPersonalAuthorizedRosters(form.subdivisionId, id)
-                                                                                .flatMap(personalRosters -> {
-                                                                                            authorizedRosters.addAll(personalRosters);
-                                                                                            return this.helperService.saveTimeOffBalance(id, form.getTimeOffBalance())
-                                                                                                    .flatMap(balance -> {
-                                                                                                        employee.setTimeOffBalance(balance);
-                                                                                                        employee.setAuthorizedSchedules(authorizedSchedules);
-
-                                                                                                        if (!form.email.equalsIgnoreCase(employee.getUsername())) {
-                                                                                                            return this.helperService.isRegistered(form.email, id)
-                                                                                                                    .flatMap(registered -> {
-                                                                                                                        if (registered) {
-                                                                                                                            return this.helperService.setAuthorizedScheduleNames(employee, authorizedSchedules)
-                                                                                                                                    .then(this.helperService.setAuthorizedRosters(employee, authorizedRosters))
-                                                                                                                                    .flatMap(emp -> this.helperService.persistSubdivision(form, providerId, emp, true))
-                                                                                                                                    .flatMap(entity -> Mono.just(ResponseEntity.ok(new Forms.GenericResponse("existingUser"))));
-                                                                                                                        } else {
-                                                                                                                            employee.setUsername(form.email);
-                                                                                                                            return this.helperService.setAuthorizedScheduleNames(employee, authorizedSchedules)
-                                                                                                                                    .then(this.helperService.setAuthorizedRosters(employee, authorizedRosters))
-                                                                                                                                    .then(this.helperService.persistSubdivision(form, providerId, employee, true));
-                                                                                                                        }
-                                                                                                                    });
-                                                                                                        } else {
-                                                                                                            return this.helperService.setAuthorizedScheduleNames(employee, authorizedSchedules)
-                                                                                                                    .then(this.helperService.setAuthorizedRosters(employee, authorizedRosters))
-                                                                                                                    .then(this.helperService.persistSubdivision(form, providerId, employee, true));
-                                                                                                        }
-                                                                                                    });
-                                                                                        }
-                                                                                )
-                                                                        )
-                                                                );
+                                                    if (form.password != null) {
+                                                        var updatePasswordClient = this.commonHelper.buildAPIAccessWebClient(commonHelper.authServiceUrl + "/employee/password/set/" + id
+                                                        + "?password=" + form.password);
+                                                        return updatePasswordClient.get()
+                                                                .retrieve()
+                                                                .bodyToMono(String.class)
+                                                                .flatMap(passwordResponse -> {
+                                                                    if (passwordResponse.equals("ok")) {
+                                                                        return editEmployeeResponse(id, form, providerId, employee, response);
+                                                                    } else {
+                                                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("editError")));
+                                                                    }
+                                                                });
                                                     } else {
-                                                        return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("editError")));
+                                                        return editEmployeeResponse(id, form, providerId, employee, response);
                                                     }
                                                 });
 
@@ -284,6 +261,47 @@ public class EmployeeHelper {
                 );
     }
 
+    private Mono<ResponseEntity> editEmployeeResponse(long id, Forms.NewEmployeeForm form, Long providerId, Employee employee, String response) {
+        if (response.equals("ok")) {
+            return this.helperService.setAuthorizedSchedules(form, providerId, id, form.allSchedules)
+                    .flatMap(authorizedSchedules -> this.helperService.setAuthorizedRosters(form, providerId)
+                            .flatMap(authorizedRosters -> this.helperService.setPersonalAuthorizedRosters(form.subdivisionId, id)
+                                    .flatMap(personalRosters -> {
+                                                authorizedRosters.addAll(personalRosters);
+                                                return this.helperService.saveTimeOffBalance(id, form.getTimeOffBalance())
+                                                        .flatMap(balance -> {
+                                                            employee.setTimeOffBalance(balance);
+                                                            employee.setAuthorizedSchedules(authorizedSchedules);
+
+                                                            if (!form.email.equalsIgnoreCase(employee.getUsername())) {
+                                                                return this.helperService.isRegistered(form.email, id)
+                                                                        .flatMap(registered -> {
+                                                                            if (registered) {
+                                                                                return this.helperService.setAuthorizedScheduleNames(employee, authorizedSchedules)
+                                                                                        .then(this.helperService.setAuthorizedRosters(employee, authorizedRosters))
+                                                                                        .flatMap(emp -> this.helperService.persistSubdivision(form, providerId, emp, true))
+                                                                                        .flatMap(entity -> Mono.just(ResponseEntity.ok(new Forms.GenericResponse("existingUser"))));
+                                                                            } else {
+                                                                                employee.setUsername(form.email);
+                                                                                return this.helperService.setAuthorizedScheduleNames(employee, authorizedSchedules)
+                                                                                        .then(this.helperService.setAuthorizedRosters(employee, authorizedRosters))
+                                                                                        .then(this.helperService.persistSubdivision(form, providerId, employee, true));
+                                                                            }
+                                                                        });
+                                                            } else {
+                                                                return this.helperService.setAuthorizedScheduleNames(employee, authorizedSchedules)
+                                                                        .then(this.helperService.setAuthorizedRosters(employee, authorizedRosters))
+                                                                        .then(this.helperService.persistSubdivision(form, providerId, employee, true));
+                                                            }
+                                                        });
+                                            }
+                                    )
+                            )
+                    );
+        } else {
+            return Mono.just(ResponseEntity.ok(new Forms.GenericResponse("editError")));
+        }
+    }
 
 
     public Mono<ResponseEntity> getListOfTimeRequests(long id){
